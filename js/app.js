@@ -260,10 +260,10 @@
       item('Archivos seleccionados', docs)
     );
     updateTotal();
-    if (!window.GDI_DATA?.configured) {
+    if (!window.GDI_DATA?.receptionReady) {
       const status = $('#submissionStatus');
       status.hidden = false;
-      status.textContent = 'Modo de prueba: Firebase todavía no está configurado. Puedes revisar el formulario y descargar un resumen, pero no se enviarán ni almacenarán datos personales.';
+      status.textContent = 'Recepción aún no habilitada: Firebase está identificado, pero falta activar Storage, verificar las reglas y completar la privacidad. Puedes descargar el resumen; no se guardarán documentos.';
       $('#downloadSummary').hidden = false;
     } else {
       $('#submissionStatus').hidden = true;
@@ -302,8 +302,8 @@
     const status = $('#paymentSubmissionStatus');
     status.hidden = false;
     const gateway = window.GDI_DATA;
-    if (!gateway?.configured) {
-      status.textContent = 'Solicitud NO enviada: falta conectar Firebase en js/firebase-config.js y activar las reglas de privacidad. El número Sberbank mostrado no habilita pagos.';
+    if (!gateway?.receptionReady) {
+      status.textContent = 'Solicitud NO enviada: faltan configurar el almacenamiento seguro, las reglas y la política de privacidad. El número Sberbank mostrado no habilita pagos.';
       $('#downloadSummary').hidden = false;
       status.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;

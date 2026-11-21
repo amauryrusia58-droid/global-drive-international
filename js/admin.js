@@ -122,9 +122,9 @@
   async function authorizedUI(user,isAdmin,error){
     if(!isAdmin){resetPreviews();stopListening?.();stopListening=null;all=[];selection=null;$('#adminWorkspace').hidden=true;$('#adminLogin').hidden=false;
       if(error)setLogin('Error al comprobar acceso: '+error.message,true);
-      else if(!user)setLogin('Utiliza la cuenta de Google que tenga asignado el permiso de administrador.');
+      else if(!user)setLogin('Utiliza la cuenta de correo y contraseña que creaste en Firebase Authentication.');
       else setLogin('Esta cuenta no tiene autorización de administrador. Contacta con el responsable de Firebase para asignar el rol.',true);
-      $('#loginGoogle').hidden=!!user;$('#logoutDenied').hidden=!user;$('#adminIdentity').textContent=user?.email||'Acceso privado';return;
+      $('#adminLoginForm').hidden=!!user;$('#logoutDenied').hidden=!user;$('#adminIdentity').textContent=user?.email||'Acceso privado';return;
     }
     $('#adminIdentity').textContent=user.email||'Administrador';$('#adminLogin').hidden=true;$('#adminWorkspace').hidden=false;
     if(stopListening)return;
@@ -135,7 +135,14 @@
     catch(e){console.error(e);notice('No se pudo conectar con Firestore: '+e.message);}
   }
   async function start(){
-    $('#loginGoogle').addEventListener('click',async()=>{$('#loginGoogle').disabled=true;try{await window.GDI_DATA.signInAdmin();}catch(e){setLogin('No se pudo iniciar sesión: '+e.message,true);}finally{$('#loginGoogle').disabled=false;}});
+    $('#adminLoginForm').addEventListener('submit',async(event)=>{
+      event.preventDefault();
+      const button=$('#loginEmail');button.disabled=true;
+      const password=$('#adminPassword').value;
+      try { await window.GDI_DATA.signInAdmin($('#adminEmail').value,password); }
+      catch(e) { setLogin('No se pudo iniciar sesión: revisa la cuenta, la contraseña y la conexión a Firebase ('+e.code+').',true); }
+      finally { $('#adminPassword').value=''; button.disabled=false; }
+    });
     for(const id of ['adminLogout','logoutDenied'])$('#'+id).addEventListener('click',()=>window.GDI_DATA.signOutAdmin().catch((e)=>setLogin(e.message,true)));
     $('#searchRequests').addEventListener('input',refresh);$('#filterStatus').addEventListener('change',refresh);
     $('#downloadAll').addEventListener('click',zipAll);
@@ -143,8 +150,8 @@
     $('#approveRequest').addEventListener('click',()=>{if(confirm('¿Aprobar esta solicitud? No significa que el pago esté verificado.'))update({status:'approved'});});
     $('#rejectRequest').addEventListener('click',()=>{if(confirm('¿Rechazar esta solicitud?'))update({status:'rejected'});});
     $('#verifyPayment').addEventListener('click',()=>{if(confirm('¿Has comprobado personalmente que el dinero llegó a la cuenta bancaria?'))update({paymentStatus:'verified'});});
-    if(!window.GDI_DATA?.configured){setLogin('Falta completar js/firebase-config.js y publicar las reglas de seguridad de Firebase.');return;}
-    setLogin('Conectando con Firebase…');$('#loginGoogle').hidden=false;
+    if(!window.GDI_DATA?.configured){setLogin('Falta configurar la aplicación web en js/firebase-config.js.');return;}
+    setLogin('Conectando con Firebase…');$('#adminLoginForm').hidden=false;
     try{await window.GDI_DATA.watchAuth(authorizedUI);}catch(e){setLogin('No se pudo iniciar Firebase: '+e.message,true);}
   }
   // El módulo y el script clásico comparten la interfaz una vez cargados.

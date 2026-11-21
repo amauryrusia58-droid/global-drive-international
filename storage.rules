@@ -2,7 +2,7 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signed() { return request.auth != null; }
-    function admin() { return signed() && request.auth.token.admin == true; }
+    function admin() { return signed() && (request.auth.token.admin == true || request.auth.uid == "REEMPLAZAR_CON_UID_DE_AUTHENTICATION"); }
     function docRecord(id) { return firestore.get(/databases/(default)/documents/submissions/$(id)).data; }
     function owner(uid,id) { return signed() && request.auth.uid == uid && docRecord(id).ownerUid == uid; }
     function allowedType(fileName) {

@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signed() { return request.auth != null; }
-    function admin() { return signed() && request.auth.token.admin == true; }
+    function admin() { return signed() && (request.auth.token.admin == true || request.auth.uid == "REEMPLAZAR_CON_UID_DE_AUTHENTICATION"); }
     function saneText(v, n) { return v is string && v.size() <= n; }
     function expectedPrice(p, y) {
       return p == 'standard' ? (y == 1 ? 8300 : y == 3 ? 8500 : y == 5 ? 8800 : y == 10 ? 9100 : y == 20 ? 9900 : -1) :

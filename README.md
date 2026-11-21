@@ -1,6 +1,6 @@
 # Global Drive International — Web + recepción Firebase + panel privado
 
-**Entrega preparada para configuración, no conectada aún a una cuenta Firebase real.**
+**V6: configuración web real incorporada, pero la recepción de solicitudes permanece desactivada hasta completar seguridad, permisos y Storage.**
 
 Este proyecto conserva el diseño aprobado de Global Drive International y añade:
 
@@ -9,7 +9,7 @@ Este proyecto conserva el diseño aprobado de Global Drive International y añad
 - `js/app.js`: formulario, categorías múltiples, direcciones, revisión y pago Sberbank.
 - `js/firebase-service.js`: Firebase Authentication, Firestore, Storage y subida de archivos.
 - `js/admin.js`: bandeja de solicitudes, estados, visualización y descarga de archivos, ZIP local.
-- `js/firebase-config.js`: **único sitio para completar la configuración pública del proyecto**.
+- `js/firebase-config.js`: configuración web del proyecto `global-drive-international` ya integrada; falta indicar UID de administrador.
 - `firestore.rules` y `storage.rules`: normas de acceso por propietario y rol admin.
 - `firebase.json`: reglas para despliegue con Firebase CLI.
 - `admin-tools/set-admin.cjs`: script para conceder el rol `admin` con privilegios de servidor.
@@ -38,15 +38,15 @@ Al pulsar «Enviar solicitud para revisión», si la plataforma está habilitada
 
 ### 1) Crear o seleccionar el proyecto Firebase
 
-1. Abre https://console.firebase.google.com y selecciona un proyecto de Firebase de uso propio.
-2. En **Configuración del proyecto → Tus apps**, registra una aplicación web y copia sus campos públicos (`apiKey`, `authDomain`, `projectId`, `storageBucket`, `appId`) a `js/firebase-config.js`.
-3. En **Authentication → Sign-in method**, habilita **Anónimo** (para que los clientes no necesiten crear cuentas) y **Google** (para el administrador).
+1. Entra en https://console.firebase.google.com y abre tu proyecto **Global Drive International**.
+2. La app web ya está registrada y los campos públicos (`apiKey`, `authDomain`, `projectId`, `storageBucket`, `appId`) están integrados en `js/firebase-config.js`. No es necesario repetir el registro.
+3. En **Authentication → Método de acceso**, ya está habilitado **Correo electrónico/contraseña** para el administrador; habilita **Anónimo** más adelante para los clientes, únicamente con reglas y controles antiabuso verificados.
 4. En **Authentication → Settings → Authorized domains**, añade el dominio exacto de GitHub Pages o tu dominio propio, sin inventar URLs.
 5. Crea la base **Cloud Firestore** en modo seguro; crea **Cloud Storage para Firebase** (puede necesitar plan de facturación habilitado). No utilices «reglas abiertas».
 
 ### 2) Publicar las reglas
 
-**Copia las reglas completas** a Firebase Console → Firestore → Rules y Storage → Rules, y pulsa publicar, o utiliza la Firebase CLI desde la carpeta del proyecto:
+**No sobrescribas aún las reglas que acabas de publicar en Firebase.** Antes de actualizar Firestore y Storage, sustituye `REEMPLAZAR_CON_UID_DE_AUTHENTICATION` con el UID exacto del administrador y revisa/probar las reglas. Tras validarlas, publica las reglas completas en Firebase Console → Firestore → Rules y Storage → Rules, o utiliza la Firebase CLI desde la carpeta del proyecto:
 
 ```bash
 npm install -g firebase-tools
@@ -61,9 +61,9 @@ El despliegue requiere seleccionar **tu proyecto correcto**. Al usar `firestore.
 
 ### 3) Autorizar tu cuenta de administrador
 
-1. Visita la página `admin.html` publicada e inicia sesión con Google (primero el proveedor Google debe estar habilitado). Aparecerá «esta cuenta no tiene autorización» hasta completar el siguiente paso.
+1. Visita la página `admin.html` publicada e inicia sesión con el correo/contraseña de la cuenta administradora creada en Authentication. Aparecerá «esta cuenta no tiene autorización» hasta configurar su UID o claim.
 2. Copia el **UID** exacto de esa cuenta desde Firebase Console → Authentication → Users.
-3. Ejecuta en un ordenador con **credenciales de servidor** de Firebase Admin SDK, desde `admin-tools/`:
+3. **Vía sencilla**: coloca el UID exacto en `js/firebase-config.js` (`adminUid`) y en `firestore.rules` y `storage.rules` (`REEMPLAZAR_CON_UID_DE_AUTHENTICATION`), sin publicar estas reglas hasta revisarlas. **Vía alternativa avanzada**: puedes asignar un custom claim `admin` usando Firebase Admin SDK en un equipo con credenciales de servidor, desde `admin-tools/`:
 
 ```bash
 npm install
@@ -72,7 +72,7 @@ npm install
 node set-admin.cjs UID_DE_AUTHENTICATION
 ```
 
-4. Cierra sesión y entra de nuevo en `admin.html`. El script crea el custom claim `admin: true`, que las reglas verificarán en cada petición. Activa la verificación en dos pasos en la cuenta de Google administradora.
+4. Cierra sesión y entra de nuevo en `admin.html`. Las reglas comprobarán tu UID autorizado o, en la vía avanzada, el custom claim `admin: true`. Protege tu cuenta de administrador con una contraseña fuerte y las opciones de seguridad disponibles.
 
 **Nunca pongas una clave privada, contraseña, token de servicio, JSON de cuenta de servicio o credential de Admin SDK dentro de GitHub Pages o de `js/firebase-config.js`.** La configuración web `apiKey` de Firebase no es una credencial de administrador: la seguridad depende de las reglas y de los tokens autenticados.
 
@@ -106,9 +106,11 @@ Descomprime y sube **los archivos dentro de la carpeta** a la raíz del reposito
 
 ## Limitaciones y pendientes
 
-- Esta entrega **NO** está conectada a una cuenta Firebase activa: no se han proporcionado credenciales públicas de configuración ni permisos para publicar reglas.
+- La configuración web del proyecto **sí está incluida**, pero las reglas no se han desplegado ni se ha habilitado recepción real; falta copiar el UID exacto y habilitar Storage si se elige el plan Blaze.
 - Las reglas están preparadas, pero **no se han desplegado ni probado contra un emulador/entorno Firebase propio**: probarlas antes de permitir documentos reales.
 - No hay confirmación bancaria automática. La cuenta Sberbank debe verificarse antes de habilitar cobros.
 - La eliminación programada de archivos/datos y los mecanismos de recuperación de cargas interrumpidas quedan pendientes de una configuración operativa antes del lanzamiento.
 - Para habilitar las descargas protegidas, revisar CORS del bucket. Usa los dominios reales del sitio.
 - El panel recupera inicialmente las **200 solicitudes más recientes**; si crece el volumen, añadir paginación.
+
+Para continuar desde la pantalla actual de Firebase, lee **`CONFIGURAR-FIREBASE.md`**.

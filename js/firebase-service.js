@@ -11,10 +11,10 @@ const privacyApproved = config.privacyApproved === true;
 const sdk = 'https://www.gstatic.com/firebasejs/13.4.0/';
 
 const api = {
-  configured: readyToConfigure && privacyApproved,
+  configured: readyToConfigure,
+  receptionReady: readyToConfigure && privacyApproved,
   async init() {
     if (!readyToConfigure) throw new Error('Firebase no está configurado. Completa js/firebase-config.js.');
-    if (!privacyApproved) throw new Error('Publica la política de privacidad y confirma privacyApproved en js/firebase-config.js.');
     if (active) return active;
     if (pending) return pending;
     pending = (async () => {
@@ -39,6 +39,7 @@ const api = {
     try { return await pending; } finally { pending = null; }
   },
   async submit(form, pkg, year, categoryValues, paymentDeclared, progress) {
+    if (!privacyApproved) throw new Error('La recepción permanece cerrada hasta configurar Storage, privacidad y reglas seguras.');
     const {auth,db,storage,authApi,fs,st} = await this.init();
     if (!auth.currentUser) await authApi.signInAnonymously(auth);
     const uid = auth.currentUser.uid;
@@ -77,10 +78,13 @@ const api = {
     await fs.updateDoc(reference, {files, status:'new', updatedAt: fs.serverTimestamp()});
     return {reference: reference.id, paymentVerified: false};
   },
-  async signInAdmin() {
+  async signInAdmin(email, password) {
     const {auth,authApi} = await this.init();
-    const provider = new authApi.GoogleAuthProvider();
-    return authApi.signInWithPopup(auth, provider);
+    if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
+      throw new Error('Introduce correo electrónico y contraseña.');
+    }
+    // La contraseña se envía directamente a Firebase Auth, sin guardarla en JS/Firestore.
+    return authApi.signInWithEmailAndPassword(auth, email.trim(), password);
   },
   async signOutAdmin() {
     const {auth,authApi} = await this.init();
@@ -92,7 +96,10 @@ const api = {
       if (!user) { callback(null, false); return; }
       try {
         const token = await authApi.getIdTokenResult(user, true);
-        callback(user, token.claims.admin === true);
+        // La autorización real la imponen Firestore/Storage Rules.
+        const sameUid = typeof config.adminUid === 'string'
+          && config.adminUid.length > 0 && user.uid === config.adminUid;
+        callback(user, token.claims.admin === true || sameUid);
       } catch (e) { callback(user, false, e); }
     });
   },
