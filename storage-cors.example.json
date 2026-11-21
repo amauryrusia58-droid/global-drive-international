@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://TU_USUARIO.github.io", "https://TU_DOMINIO_PROPIO.com"],
+    "method": ["GET", "HEAD", "PUT", "POST"],
+    "responseHeader": ["Content-Type", "Authorization", "x-goog-resumable", "x-firebase-storage-version"],
+    "maxAgeSeconds": 3600
+  }
+]

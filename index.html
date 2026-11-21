@@ -9,6 +9,8 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
   <script defer src="js/config.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script type="module" src="js/firebase-service.js"></script>
   <script defer src="js/app.js"></script>
 </head>
 <body>
@@ -101,7 +103,7 @@
     <div class="request-dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" tabindex="-1">
       <div class="dialog-top"><div class="dialog-logo"><span aria-hidden="true">◎</span><div><strong>Global Drive</strong><small>INTERNATIONAL</small></div></div><h2 id="dialogTitle">Solicitud de libreto de traducción</h2><button type="button" class="close-modal" id="closeRequest" aria-label="Cerrar el formulario">×</button></div>
       <div class="dialog-content">
-        <ol class="progress" aria-label="Progreso del formulario"><li data-progress="1" class="is-active"><span>1</span><b>Paquete y vigencia</b></li><li data-progress="2"><span>2</span><b>Tus datos</b></li><li data-progress="3"><span>3</span><b>Documentos y entrega</b></li><li data-progress="4"><span>4</span><b>Confirmación</b></li></ol>
+        <ol class="progress" aria-label="Progreso del formulario"><li data-progress="1" class="is-active"><span>1</span><b>Paquete y vigencia</b></li><li data-progress="2"><span>2</span><b>Tus datos</b></li><li data-progress="3"><span>3</span><b>Documentos y entrega</b></li><li data-progress="4"><span>4</span><b>Revisión</b></li><li data-progress="5"><span>5</span><b>Pago y envío</b></li></ol>
         <form id="requestForm" novalidate>
           <section class="form-step" data-step="1" aria-labelledby="stepOneTitle">
             <div class="step-header"><h3 id="stepOneTitle">Elige tu libreto y su duración</h3><p>Verás el precio exacto del paquete antes de continuar.</p></div>
@@ -124,7 +126,8 @@
               <label>Fecha de nacimiento <span>*</span><input type="date" name="birthDate" required></label>
               <label>País de nacimiento <span>*</span><input name="birthCountry" required maxlength="100" placeholder="País de nacimiento"></label>
               <label>Número de licencia nacional <span>*</span><input name="licenseNumber" required maxlength="80" placeholder="Número de licencia"></label>
-              <label>Categoría <span>*</span><select name="licenseCategory" required><option value="">Seleccionar</option><option>A</option><option>A1</option><option>B</option><option>B1</option><option>C</option><option>C1</option><option>D</option><option>D1</option><option>BE</option><option>CE</option><option>DE</option><option>Otra</option></select></label>
+              <fieldset class="license-category-group span-2" id="categoryGroup"><legend>Categorías de tu licencia nacional <span>*</span></legend><p>Marca todas las categorías que aparecen en tu licencia; puedes elegir más de una.</p><div class="category-checks" role="group" aria-label="Categorías de licencia">
+                  <label><input type="checkbox" name="licenseCategories" value="A"> A</label><label><input type="checkbox" name="licenseCategories" value="A1"> A1</label><label><input type="checkbox" name="licenseCategories" value="B"> B</label><label><input type="checkbox" name="licenseCategories" value="B1"> B1</label><label><input type="checkbox" name="licenseCategories" value="C"> C</label><label><input type="checkbox" name="licenseCategories" value="C1"> C1</label><label><input type="checkbox" name="licenseCategories" value="D"> D</label><label><input type="checkbox" name="licenseCategories" value="D1"> D1</label><label><input type="checkbox" name="licenseCategories" value="BE"> BE</label><label><input type="checkbox" name="licenseCategories" value="CE"> CE</label><label><input type="checkbox" name="licenseCategories" value="DE"> DE</label><label><input type="checkbox" name="licenseCategories" value="C1E"> C1E</label><label><input type="checkbox" name="licenseCategories" value="D1E"> D1E</label><label><input type="checkbox" name="licenseCategories" value="M"> M</label><label><input type="checkbox" name="licenseCategories" value="Otra"> Otra</label></div><label class="other-category" id="otherCategoryWrap" hidden>Especifica otras categorías <span>*</span><input name="otherCategory" maxlength="80" placeholder="Ej.: categoría local" autocomplete="off"></label><span class="category-validation" id="categoryError" role="alert" hidden>Selecciona al menos una categoría para continuar.</span></fieldset>
               <label>Fecha de emisión <span>*</span><input type="date" name="licenseIssue" required></label>
               <label>Fecha de vencimiento <span>*</span><input type="date" name="licenseExpiry" required></label>
               <label>Teléfono de contacto <span>*</span><input type="tel" name="phone" autocomplete="tel" required maxlength="35" placeholder="Incluye código de país"></label>
@@ -132,12 +135,11 @@
             </div>
           </section>
           <section class="form-step" data-step="3" aria-labelledby="stepThreeTitle" hidden>
-            <div class="step-header"><h3 id="stepThreeTitle">Documentos y entrega</h3><p>Archivos claros y legibles. Los documentos no se enviarán hasta que se conecte un sistema de recepción seguro.</p></div>
+            <div class="step-header"><h3 id="stepThreeTitle">Documentos y entrega</h3><p>Archivos claros y legibles. Se enviarán de forma protegida cuando Firebase esté configurado.</p></div>
             <div class="uploads-grid">
               <label class="upload-box"><span class="upload-icon">◉</span><strong>Fotografía personal <span>*</span></strong><small>JPG o PNG · rostro claro y fondo uniforme</small><input type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required><span class="file-label" data-file-label="photo">Seleccionar archivo</span></label>
               <label class="upload-box"><span class="upload-icon">✍</span><strong>Firma <span>*</span></strong><small>JPG o PNG · firma sobre fondo claro</small><input type="file" name="signature" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required><span class="file-label" data-file-label="signature">Seleccionar archivo</span></label>
-              <label class="upload-box"><span class="upload-icon">▣</span><strong>Licencia original (frente) <span>*</span></strong><small>Imagen clara · JPG o PDF</small><input type="file" name="licenseFront" accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf" required><span class="file-label" data-file-label="licenseFront">Seleccionar archivo</span></label>
-              <label class="upload-box"><span class="upload-icon">▣</span><strong>Licencia original (reverso)</strong><small>JPG o PDF · si tiene información al dorso</small><input type="file" name="licenseBack" accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"><span class="file-label" data-file-label="licenseBack">Seleccionar archivo</span></label>
+              <label class="upload-box"><span class="upload-icon">▣</span><strong>Licencia de conducir original <span>*</span></strong><small>Foto clara de la cara donde aparecen las categorías · JPG o PDF</small><input type="file" name="licenseOriginal" accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf" required><span class="file-label" data-file-label="licenseOriginal">Seleccionar archivo</span></label>
             </div>
             <div class="delivery-header"><h4>Dirección de entrega</h4><label class="checkbox-line"><input type="checkbox" id="sameAddress" name="sameAddress"> Usar mi dirección particular</label></div>
             <div class="form-grid" id="deliveryFields">
@@ -154,11 +156,29 @@
             <div class="review-grid" id="reviewGrid" aria-live="polite"></div>
             <div class="final-total"><span>Total del libreto</span><strong id="reviewPrice">—</strong></div>
             <p class="informative">Los gastos de entrega y otros cargos no están incluidos. La aceptación del documento depende de las autoridades de cada país.</p>
-            <label class="checkbox-line consent"><input type="checkbox" name="privacyConsent" required> Confirmo que tengo una licencia nacional válida y autorizo el tratamiento de estos datos exclusivamente para gestionar mi solicitud para tramitar mi solicitud, y entiendo que solo se transmitirán cuando esté configurado el sistema de recepción seguro.</label>
+            <label class="checkbox-line consent"><input type="checkbox" name="privacyConsent" required> Confirmo que mi licencia nacional es válida y autorizo el tratamiento de mis datos, fotografía, firma e imagen de licencia para gestionar esta solicitud, según la <a href="privacy.html" target="_blank" rel="noopener">información de privacidad</a> del servicio.</label>
             <div class="submission-status" id="submissionStatus" role="status" aria-live="polite" hidden></div>
             <button type="button" class="btn btn-secondary" id="downloadSummary" hidden>Descargar resumen de la solicitud (sin archivos)</button>
           </section>
-          <div class="form-footer"><button type="button" class="btn btn-quiet" id="prevStep" hidden>← Anterior</button><div class="footer-spacer"></div><button type="button" class="btn btn-primary" id="nextStep">Continuar →</button><button type="submit" class="btn btn-primary" id="submitRequest" hidden>Enviar solicitud →</button></div>
+          <section class="form-step" data-step="5" aria-labelledby="stepFiveTitle" hidden>
+            <div class="step-header"><h3 id="stepFiveTitle">Método de pago y envío de la solicitud</h3><p>Confirma el paquete y consulta los datos del método elegido. Tu solicitud se recibirá independientemente del pago; las transferencias declaradas se verificarán manualmente.</p></div>
+            <div class="payment-layout">
+              <div class="payment-methods"><h4>Seleccionar método de pago</h4>
+                <label class="payment-method-option"><input type="radio" name="paymentMethod" value="sberbank" checked required><span class="bank-symbol" aria-hidden="true">₽</span><span><strong>Sberbank</strong><small>Transferencia bancaria · RUB</small></span><span class="payment-selection-indicator" aria-hidden="true">✓</span></label>
+                <p class="payment-note">La transferencia no se verifica automáticamente desde esta página. La confirmación corresponde al administrador.</p>
+              </div>
+              <div class="payment-details">
+                <div class="bank-card-mockup" aria-label="Referencia visual de Sberbank"><div class="bank-card-top"><span>Sberbank</span><span class="bank-card-chip" aria-hidden="true">▦</span></div><strong class="bank-card-number" id="bankCardNumber">2202 2088 0978 9713</strong><span class="bank-card-holder" id="bankCardHolder">TITULAR PENDIENTE</span><span class="bank-card-disclaimer" id="bankCardBadge">PAGOS AÚN NO HABILITADOS</span></div>
+                <div class="payment-copy-row"><div><small>Referencia para transferencia</small><strong id="bankCopyValue">2202208809789713</strong></div><button type="button" class="btn btn-secondary" id="copyBankDetails">Copiar</button></div>
+                <p class="payment-copy-feedback" id="copyFeedback" role="status" aria-live="polite"></p>
+              </div>
+            </div>
+            <div class="payment-total"><span>Importe del libreto</span><strong id="paymentPrice">—</strong><small>Los gastos de envío se cotizan aparte.</small></div>
+            <div class="payment-test-notice" id="paymentTestNotice">La tarjeta se muestra como referencia visual. <strong>Los pagos aún no están habilitados</strong> hasta que se verifique el titular. Puedes enviar la solicitud para revisión sin declarar un pago; no transfieras dinero hasta que se confirme su activación.</div>
+            <label class="checkbox-line payment-declaration"><input type="checkbox" name="paymentDeclared" id="paymentDeclared"> Declaro que he enviado el importe indicado al método de pago configurado y solicito que revisen mi pago. Entiendo que marcar esta casilla no confirma la transferencia.</label>
+            <div class="submission-status" id="paymentSubmissionStatus" role="status" aria-live="polite" hidden></div>
+          </section>
+          <div class="form-footer"><button type="button" class="btn btn-quiet" id="prevStep" hidden>← Anterior</button><div class="footer-spacer"></div><button type="button" class="btn btn-primary" id="nextStep">Continuar →</button><button type="submit" class="btn btn-primary" id="submitRequest" hidden>Enviar solicitud para revisión →</button></div>
         </form>
       </div>
     </div>

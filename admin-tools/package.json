@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "description": "Utilidades de configuración de administradores GDI (NO se publican como web)",
+  "dependencies": { "firebase-admin": "^13.0.0" }
+}

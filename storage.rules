@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signed() { return request.auth != null; }
+    function admin() { return signed() && request.auth.token.admin == true; }
+    function docRecord(id) { return firestore.get(/databases/(default)/documents/submissions/$(id)).data; }
+    function owner(uid,id) { return signed() && request.auth.uid == uid && docRecord(id).ownerUid == uid; }
+    function allowedType(fileName) {
+      return (fileName.matches('(photo|signature)\\.(jpg|jpeg|png)') && request.resource.contentType in ['image/jpeg','image/png'])
+        || (fileName.matches('license\\.(jpg|jpeg|pdf)') && request.resource.contentType in ['image/jpeg','application/pdf']);
+    }
+    match /submissions/{uid}/{id}/{fileName} {
+      allow read: if admin() || owner(uid,id);
+      allow create, update: if owner(uid,id)
+        && docRecord(id).status == 'uploading'
+        && request.time < docRecord(id).createdAt + duration.value(60,'m')
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
+        && allowedType(fileName);
+      allow delete: if admin() || (owner(uid,id) && docRecord(id).status == 'uploading');
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,41 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Panel privado | Global Drive International</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/admin.css">
+<script defer src="js/config.js"></script><script defer src="js/firebase-config.js"></script>
+<script type="module" src="js/firebase-service.js"></script>
+<script defer src="js/admin.js"></script>
+</head><body>
+<header class="admin-header"><a class="brand" href="index.html"><span class="globe">◎</span><span>GLOBAL DRIVE<small>INTERNATIONAL</small></span></a><h1>Panel de administración <small>Gestión de solicitudes, pagos y clientes</small></h1><div class="identity" id="adminIdentity">Acceso privado</div></header>
+<section class="login-screen" id="adminLogin"><div class="login-card"><span class="login-icon">♙</span><h2>Acceso exclusivo de administración</h2><p>Inicia sesión con la cuenta de Google autorizada. Los documentos solo estarán disponibles cuando Firebase confirme tu permiso de administrador.</p><div id="loginNotice" class="notice" role="status">Comprobando configuración…</div><button id="loginGoogle" class="primary" type="button" hidden>Acceder con Google</button><button id="logoutDenied" class="outline" type="button" hidden>Cerrar sesión</button></div></section>
+<div class="layout" id="adminWorkspace" hidden>
+  <aside class="sidebar"><div class="side-heading">GLOBAL DRIVE · GESTIÓN</div>
+    <button class="side-action active" type="button" id="navSubmissions">▤ &nbsp; Solicitudes</button>
+    <a class="side-action" href="index.html">⌂ &nbsp; Ver página pública</a>
+    <div class="side-footer"><button type="button" class="outline" id="adminLogout">Cerrar sesión</button><small>Panel privado; acceso protegido con Firebase Authentication y reglas de seguridad</small></div>
+  </aside>
+  <main class="workspace">
+    <div class="metrics"><article><span class="metric-symbol">▤</span><div><small>Solicitudes recibidas</small><strong id="countTotal">0</strong></div></article><article><span class="metric-symbol">◷</span><div><small>Pagos por comprobar</small><strong id="countPending">0</strong></div></article><article><span class="metric-symbol green">✓</span><div><small>Aprobadas</small><strong id="countApproved">0</strong></div></article><article><span class="metric-symbol">◴</span><div><small>En revisión</small><strong id="countReview">0</strong></div></article></div>
+    <div class="management-grid">
+      <section class="list-panel" aria-label="Solicitudes recientes"><div class="panel-title"><h2>Solicitudes recientes</h2><span id="listCount">0 resultados</span></div>
+        <input id="searchRequests" type="search" aria-label="Buscar solicitudes" placeholder="Buscar por nombre, referencia, correo o teléfono">
+        <select id="filterStatus" aria-label="Filtrar estado"><option value="">Todos los estados</option><option value="new">Nuevas</option><option value="review">En revisión</option><option value="approved">Aprobadas</option><option value="rejected">Rechazadas</option><option value="uploading">Carga incompleta</option></select>
+        <div id="requestsList" class="requests-list"><p class="empty">Todavía no hay solicitudes.</p></div>
+      </section>
+      <section class="detail-panel" aria-label="Detalle de solicitud"><div id="detailsEmpty" class="no-selected"><span>▤</span><h2>Selecciona una solicitud</h2><p>Verás sus datos, categorías, documentos, firma, método de pago y acciones administrativas.</p></div>
+        <div id="detailsContent" hidden>
+          <div class="detail-heading"><h2 id="detailReference">Solicitud</h2><span id="detailStatus" class="status"></span></div>
+          <div class="detail-grid"><article class="detail-card"><h3>1 · Datos personales</h3><dl id="personalList"></dl></article><article class="detail-card"><h3>2 · Paquete solicitado</h3><dl id="packageList"></dl><strong id="detailPrice" class="price"></strong></article><article class="detail-card"><h3>3 · Categorías de licencia</h3><div id="categoryList" class="categories"></div></article><article class="detail-card"><h3>4 · Dirección de entrega</h3><dl id="deliveryList"></dl></article></div>
+          <article class="detail-card documents-panel"><h3>5 · Documentos recibidos</h3><p>Ver o descargar los archivos originales que adjuntó el cliente.</p><div class="document-grid" id="documentGrid"></div><button class="outline" id="downloadAll" type="button">↓ Descargar todo (ZIP)</button></article>
+          <article class="detail-card payment-panel"><h3>6 · Método de pago</h3><dl id="paymentList"></dl><p class="payment-disclaimer">Que el cliente declare haber transferido no significa que el pago esté confirmado. Comprueba el ingreso en tu banco antes de marcarlo como verificado.</p><button class="outline" id="verifyPayment" type="button">Marcar pago como verificado</button></article>
+          <div class="admin-actions"><button id="markReview" class="outline" type="button">◷ Marcar en revisión</button><button id="approveRequest" class="primary success" type="button">✓ Aprobar solicitud</button><button id="rejectRequest" class="outline danger" type="button">× Rechazar</button></div>
+          <div class="notice" id="detailMessage" role="status" hidden></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script type="module" src="js/admin-bootstrap.js"></script>
+</body></html>

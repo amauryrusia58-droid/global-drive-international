@@ -21,6 +21,12 @@
   const cost = () => settings.pricesRUB[state.package][state.year];
   const labelYear = (n) => `${n} ${n === 1 ? 'año' : 'años'}`;
   const get = (name) => form.elements.namedItem(name);
+  const categories = () => $$('input[name="licenseCategories"]:checked', form).map((input) => input.value === 'Otra' ? `Otra: ${val('otherCategory')}` : input.value);
+  const bankIsConfigured = () => Boolean(settings.sberbank?.enabled && /^\d{16,19}$/.test(String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '')) && String(settings.sberbank?.recipientName || '').trim());
+  const bankCopyText = () => {
+    const digits = String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '');
+    return /^\d{16,19}$/.test(digits) ? digits : 'SBERBANK-CUENTA-PENDIENTE';
+  };
   const val = (name) => String(get(name)?.value || '').trim();
   const today = () => {
     const d = new Date();
@@ -89,6 +95,7 @@
   function updateTotal() {
     $('#modalPrice').textContent = money(cost());
     $('#reviewPrice').textContent = money(cost());
+    $('#paymentPrice').textContent = money(cost());
   }
 
   function openRequest(pkg = 'standard', year = 1) {
@@ -98,6 +105,8 @@
     document.body.classList.add('modal-open');
     selectPackage(pkg, year);
     $('#submissionStatus').hidden = true;
+    $('#paymentSubmissionStatus').hidden = true;
+    $('#paymentDeclared').checked = false;
     $('#downloadSummary').hidden = true;
     setStep(1);
     dialog.focus({ preventScroll: true });
@@ -120,9 +129,10 @@
       if (i === n) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
     });
     $('#prevStep').hidden = n === 1;
-    $('#nextStep').hidden = n === 4;
-    $('#submitRequest').hidden = n !== 4;
+    $('#nextStep').hidden = n === 5;
+    $('#submitRequest').hidden = n !== 5;
     if (n === 4) renderReview();
+    if (n === 5) updatePaymentDetails();
     dialog.scrollTo({ top: 0, behavior: 'instant' });
   }
 
@@ -179,6 +189,11 @@
       }
     }
     if (n === 2) {
+      const checked = $$('input[name="licenseCategories"]:checked', form);
+      const categoryError = $('#categoryError');
+      categoryError.hidden = checked.length > 0;
+      $('#categoryGroup').classList.toggle('category-invalid', checked.length === 0);
+      if (!checked.length) firstInvalid ||= $('input[name="licenseCategories"]', form);
       if (val('birthDate') && val('birthDate') >= today()) {
         error(get('birthDate'), 'La fecha de nacimiento debe ser anterior a hoy.');
         firstInvalid ||= get('birthDate');
@@ -194,6 +209,10 @@
         error(get('licenseExpiry'), 'Necesitas una licencia nacional vigente.');
         firstInvalid ||= get('licenseExpiry');
       }
+    }
+    if (n === 5 && bankIsConfigured() && !$('#paymentDeclared').checked) {
+      error($('#paymentDeclared'), 'Marca esta casilla solo después de realizar la transferencia.');
+      firstInvalid ||= $('#paymentDeclared');
     }
     if (n === 1 && !get('package').value) firstInvalid ||= get('package');
     if (n === 1 && !$('input[name="duration"]:checked', form)) firstInvalid ||= $('input[name="duration"]', form);
@@ -226,39 +245,43 @@
 
   function renderReview() {
     const area = $('#reviewGrid');
-    const docs = ['photo', 'signature', 'licenseFront', 'licenseBack']
-      .map((name) => `${({ photo: 'Foto', signature: 'Firma', licenseFront: 'Licencia frente', licenseBack: 'Licencia reverso' })[name]}: ${get(name).files?.[0]?.name || 'No adjunto'}`)
+    const docs = ['photo', 'signature', 'licenseOriginal']
+      .map((name) => `${({ photo: 'Foto', signature: 'Firma', licenseOriginal: 'Licencia original' })[name]}: ${get(name).files?.[0]?.name || 'No adjunto'}`)
       .join(' · ');
     area.replaceChildren(
       item('Paquete', pkgLabels[state.package]),
       item('Duración', labelYear(state.year)),
       item('Nombre completo', `${val('firstName')} ${val('lastName')}`),
       item('Dirección particular', `${val('homeAddress')}, ${val('city')}, ${val('country')}`),
-      item('Licencia nacional', `${val('licenseNumber')} · Categoría ${val('licenseCategory')}`),
+      item('Licencia nacional', `${val('licenseNumber')} · Categorías: ${categories().join(', ')}`),
       item('Vigencia de licencia nacional', `${val('licenseIssue')} — ${val('licenseExpiry')}`),
       item('Contacto', `${val('phone')} · ${val('email')}`),
       item('Dirección de entrega', `${val('deliveryAddress')}, ${val('deliveryCity')}, ${val('deliveryCountry')}`),
       item('Archivos seleccionados', docs)
     );
     updateTotal();
-    if (!settings.submissionEndpoint) {
+    if (!window.GDI_DATA?.configured) {
       const status = $('#submissionStatus');
       status.hidden = false;
-      status.textContent = 'Versión de prueba: todavía no se ha configurado un receptor seguro de solicitudes. Puedes revisar el formulario y descargar el resumen, pero aquí no se enviarán ni guardarán datos o documentos.';
+      status.textContent = 'Modo de prueba: Firebase todavía no está configurado. Puedes revisar el formulario y descargar un resumen, pero no se enviarán ni almacenarán datos personales.';
       $('#downloadSummary').hidden = false;
+    } else {
+      $('#submissionStatus').hidden = true;
     }
   }
 
   function downloadSummary() {
     const lines = [
       'GLOBAL DRIVE INTERNATIONAL · RESUMEN DE SOLICITUD (SIN DOCUMENTOS)',
-      'Este documento no significa que la solicitud haya sido enviada ni aceptada.',
+      'Este documento no significa que la solicitud haya sido enviada, pagada o aceptada.',
       `Fecha: ${new Date().toLocaleString('es-ES')}`,
       `Paquete: ${pkgLabels[state.package]}`,
       `Duración solicitada: ${labelYear(state.year)}`,
       `Precio del libreto: ${money(cost())} (sin gastos de envío)`,
-      ...['firstName','lastName','country','city','homeAddress','province','zip','birthDate','birthCountry','licenseNumber','licenseCategory','licenseIssue','licenseExpiry','phone','email','deliveryCountry','deliveryCity','deliveryAddress','deliveryZip','notes'].map((name) => `${name}: ${val(name)}`),
-      ...['photo','signature','licenseFront','licenseBack'].map((name) => `${name}: ${get(name).files?.[0]?.name || '(no seleccionado)'}`),
+      ...['firstName','lastName','country','city','homeAddress','province','zip','birthDate','birthCountry','licenseNumber','licenseIssue','licenseExpiry','phone','email','deliveryCountry','deliveryCity','deliveryAddress','deliveryZip','notes'].map((name) => `${name}: ${val(name)}`),
+      `Categorías: ${categories().join(', ')}`,
+      `Método de pago: Sberbank (RUB); transferencia no verificada`,
+      ...['photo','signature','licenseOriginal'].map((name) => `${name}: ${get(name).files?.[0]?.name || '(no seleccionado)'}`),
       'IMPORTANTE: No sustituye la licencia nacional. Verificar aceptación y requisitos en el destino.'
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
@@ -271,51 +294,79 @@
 
   async function submitRealRequest(event) {
     event.preventDefault();
-    if (state.step !== 4) {
+    if (state.step !== 5) {
       if (validateStep(state.step)) setStep(state.step + 1);
       return;
     }
-    if (state.sending || !validateStep(4)) return;
-    const status = $('#submissionStatus');
+    if (state.sending || !validateStep(5)) return;
+    const status = $('#paymentSubmissionStatus');
     status.hidden = false;
-    const endpoint = String(settings.submissionEndpoint || '').trim();
-    if (!endpoint) {
-      status.textContent = 'La solicitud NO se ha enviado: falta conectar el servicio seguro que recibirá los datos y los archivos. Descarga el resumen si deseas revisar tu pedido.';
+    const gateway = window.GDI_DATA;
+    if (!gateway?.configured) {
+      status.textContent = 'Solicitud NO enviada: falta conectar Firebase en js/firebase-config.js y activar las reglas de privacidad. El número Sberbank mostrado no habilita pagos.';
       $('#downloadSummary').hidden = false;
       status.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    let url;
-    try { url = new URL(endpoint); } catch { status.textContent = 'El sistema de recepción no tiene una dirección válida.'; return; }
-    if (url.protocol !== 'https:' && url.hostname !== 'localhost') {
-      status.textContent = 'Por seguridad, el receptor de documentos debe utilizar HTTPS.';
+    if (!get('privacyConsent').checked) {
+      status.textContent = 'Debes aceptar el consentimiento de tratamiento de datos del paso anterior.';
+      setStep(4);
       return;
     }
-    const payload = new FormData(form);
-    payload.set('requestedPackage', state.package);
-    payload.set('requestedYears', String(state.year));
-    payload.set('quotedPriceRUB', String(cost()));
-    payload.delete('package'); payload.delete('duration');
     state.sending = true;
     $('#submitRequest').disabled = true;
-    $('#submitRequest').textContent = 'Enviando…';
-    status.textContent = 'Enviando tu solicitud de forma segura…';
+    $('#submitRequest').textContent = 'Enviando documentos…';
+    status.textContent = 'Conectando con el receptor protegido…';
     try {
-      const response = await fetch(url.href, { method: 'POST', body: payload, credentials: 'omit', mode: 'cors' });
-      if (!response.ok) throw new Error('Respuesta HTTP no satisfactoria');
-      const reply = await response.json();
-      if (!reply || reply.accepted !== true || !reply.reference) throw new Error('Falta confirmación de recepción');
-      status.textContent = `Solicitud recibida. Número de referencia: ${String(reply.reference)}. Guarda este código para tu seguimiento.`;
+      const reply = await gateway.submit(form, state.package, state.year, categories(), Boolean($('#paymentDeclared').checked), (message)=>{status.textContent=message;});
+      if (!reply?.reference) throw new Error('Firebase no confirmó la referencia.');
+      status.textContent = `Solicitud recibida y enviada a revisión. Referencia: ${reply.reference}. El pago permanece pendiente de comprobación manual; esta confirmación no acredita ninguna transferencia.`;
       $('#submitRequest').hidden = true;
       $('#downloadSummary').hidden = false;
     } catch (err) {
       console.error('La recepción no pudo confirmarse:', err);
-      status.textContent = 'No se pudo confirmar la recepción de la solicitud. No vuelvas a enviarla hasta verificar si llegó al administrador.';
+      status.textContent = `No se pudo confirmar la recepción: ${err?.message || 'error de conexión'}. Verifica el estado antes de repetir el envío; puede existir una carga incompleta.`;
     } finally {
       state.sending = false;
       $('#submitRequest').disabled = false;
-      $('#submitRequest').textContent = 'Enviar solicitud →';
+      $('#submitRequest').textContent = 'Enviar solicitud para revisión →';
       status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function updatePaymentDetails() {
+    const configured = bankIsConfigured();
+    const number = String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '');
+    const hasNumber = /^\d{16,19}$/.test(number);
+    $('#bankCardNumber').textContent = hasNumber ? number.replace(/(\d{4})(?=\d)/g, '$1 ').trim() : 'SIN CONFIGURAR';
+    $('#bankCardHolder').textContent = settings.sberbank?.recipientName || 'TITULAR PENDIENTE';
+    $('#bankCardBadge').textContent = configured ? 'CUENTA HABILITADA' : 'PAGOS AÚN NO HABILITADOS';
+    $('#bankCopyValue').textContent = bankCopyText();
+    $('#paymentTestNotice').hidden = configured;
+    $('#copyFeedback').textContent = '';
+    $('#paymentDeclared').disabled = !configured;
+    $('.payment-declaration').classList.toggle('is-disabled', !configured);
+    $('#submitRequest').textContent = 'Enviar solicitud para revisión →';
+  }
+
+  async function copyBankReference() {
+    const reference = bankCopyText();
+    const configured = bankIsConfigured();
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(reference);
+      } else {
+        const tmp = document.createElement('textarea');
+        tmp.value = reference; tmp.style.position = 'fixed'; tmp.style.opacity = '0';
+        document.body.append(tmp); tmp.select();
+        const copied = document.execCommand('copy'); tmp.remove();
+        if (!copied) throw new Error('Copia no permitida');
+      }
+      $('#copyFeedback').textContent = configured
+        ? 'Número de tarjeta copiado. Verifica el destinatario antes de transferir.'
+        : 'Número de tarjeta copiado para consulta. Los pagos aún no están habilitados; no envíes dinero.';
+    } catch {
+      $('#copyFeedback').textContent = `Copia manual: ${reference}`;
     }
   }
 
@@ -381,6 +432,15 @@
   });
   $('#prevStep').addEventListener('click', () => setStep(state.step - 1));
   $('#downloadSummary').addEventListener('click', downloadSummary);
+  $('#copyBankDetails').addEventListener('click', copyBankReference);
+  $$('input[name="licenseCategories"]', form).forEach((checkbox) => checkbox.addEventListener('change', () => {
+    const other = $('input[name="licenseCategories"][value="Otra"]', form).checked;
+    $('#otherCategoryWrap').hidden = !other;
+    get('otherCategory').required = other;
+    if (!other) get('otherCategory').value = '';
+    $('#categoryError').hidden = categories().length > 0;
+    $('#categoryGroup').classList.toggle('category-invalid', categories().length === 0);
+  }));
   form.addEventListener('submit', submitRealRequest);
 
   const menuButton = $('.menu-toggle');

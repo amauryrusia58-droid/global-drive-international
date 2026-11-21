@@ -15,3 +15,55 @@ body.modal-open{overflow:hidden}
 .form-grid input.read-only{background:#f4effb;color:#53456d}
 .upload-box .field-error{margin-left:0}
 .reference-note{max-width:520px;text-align:left;margin:10px 0 22px;font-size:10px}
+
+/* V2: categorías múltiples y confirmación de transferencia */
+.progress{grid-template-columns:repeat(5,minmax(0,1fr))}
+.progress li{white-space:normal;text-align:center;font-size:10px;padding-inline:4px}
+.license-category-group{margin:0;min-width:0;background:#f9f7ff;border:1px solid #dcd0f3;border-radius:14px;padding:15px 16px 14px;grid-column:span 2}
+.license-category-group legend{font-size:12px;font-weight:850;padding:0 5px;color:#29233d}
+.license-category-group legend span{color:#c33266}
+.license-category-group p{margin:2px 0 13px;font-size:11px;color:#6e647f}
+.category-checks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.category-checks label{display:flex;align-items:center;justify-content:center;gap:7px;min-height:38px;background:#fff;border:1px solid #d9c9f0;border-radius:10px;font-size:12px;font-weight:750;cursor:pointer;padding:6px 7px}
+.category-checks label:has(input:checked){background:#eee0ff;border-color:#8747d9;color:#5b20a0;box-shadow:0 0 0 1px #cda5f5}
+.category-checks input{accent-color:#7735d2;width:16px;height:16px;margin:0;cursor:pointer}
+.category-checks label:focus-within{outline:2px solid #9b6bf1;outline-offset:1px}
+.license-category-group .other-category{display:block;margin-top:11px;max-width:420px}
+.other-category[hidden]{display:none}
+.license-category-group.category-invalid{border-color:#c23967;background:#fff6f8}
+.category-validation{color:#b32550;font-size:11px;display:block;margin-top:8px;font-weight:750}
+.category-validation[hidden]{display:none}
+.payment-layout{display:grid;grid-template-columns:38% minmax(0,1fr);gap:22px;align-items:start}
+.payment-methods,.payment-details{min-width:0}
+.payment-methods h4{margin:0 0 12px;font-size:14px}
+.payment-method-option{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid #8e42de;border-radius:14px;padding:14px;cursor:pointer;box-shadow:0 5px 19px #7830b016}
+.payment-method-option input{accent-color:#7827d9;width:17px;height:17px;flex-shrink:0}
+.bank-symbol{background:#e8f6ef;color:#20784f;width:36px;height:36px;display:grid;place-items:center;border-radius:10px;font-size:25px;font-weight:750}
+.payment-method-option strong,.payment-method-option small{display:block}
+.payment-method-option strong{font-size:14px}
+.payment-method-option small{font-size:11px;color:#6e6d7d;margin-top:4px}
+.payment-selection-indicator{margin-left:auto;font-weight:900;color:#7430c3;font-size:16px}
+.payment-note{font-size:11px;line-height:1.6;color:#625c77}
+.bank-card-mockup{min-height:198px;border-radius:19px;background:linear-gradient(126deg,#183c4a,#165565 53%,#153d58);box-shadow:0 18px 31px #0f2e3a39;color:#fff;padding:22px 24px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.bank-card-mockup:after{content:'';position:absolute;right:-60px;bottom:-145px;width:300px;height:260px;border:2px solid #ffffff1a;border-radius:50%;pointer-events:none}
+.bank-card-top{display:flex;justify-content:space-between;align-items:center;font-size:22px;font-weight:850;letter-spacing:-.6px}
+.bank-card-chip{font-size:28px;color:#d8e2c8}
+.bank-card-number{font-size:23px;letter-spacing:1px;overflow-wrap:anywhere;margin-top:12px}
+.bank-card-holder{font-size:12px;letter-spacing:1px;font-weight:750}
+.bank-card-disclaimer{font-size:10px;color:#dcf5ed;letter-spacing:.4px}
+.payment-copy-row{display:flex;gap:12px;align-items:center;justify-content:space-between;background:#fff;border:1px solid #ddd1ec;border-radius:12px;padding:13px;margin-top:12px}
+.payment-copy-row small{display:block;color:#82788f;font-size:10px;margin-bottom:5px}
+.payment-copy-row strong{overflow-wrap:anywhere;font-size:12px;color:#342b49}
+.payment-copy-row button{flex-shrink:0}
+.payment-copy-feedback{font-size:11px;line-height:1.4;color:#5d278d;min-height:16px;margin:5px 0}
+.payment-total{display:flex;align-items:center;flex-wrap:wrap;gap:12px;justify-content:space-between;padding:14px 18px;border-radius:13px;background:#f0e7ff;border:1px solid #d6baf7;margin-top:24px}
+.payment-total span{font-size:13px;font-weight:750}
+.payment-total strong{font-size:24px;color:#512593}
+.payment-total small{width:100%;font-size:11px;color:#6d6186}
+.payment-test-notice{border-left:4px solid #bf8649;background:#fff7eb;color:#78532b;padding:13px 16px;font-size:12px;line-height:1.5;margin-top:15px;border-radius:9px}
+.payment-test-notice[hidden]{display:none}
+.payment-declaration{font-size:12px;line-height:1.5;margin-top:17px}
+.payment-declaration.is-disabled{opacity:.55;cursor:not-allowed}
+.payment-declaration .field-error{margin:5px 0 0}
+@media(max-width:820px){.progress li b{font-weight:700;font-size:9px}.category-checks{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:600px){.payment-layout{grid-template-columns:1fr}.category-checks{grid-template-columns:repeat(3,minmax(0,1fr))}.license-category-group{grid-column:span 1}.progress li{font-size:9px;padding:5px 2px}.progress li span{width:19px;height:19px}.progress li b{font-size:8px}.payment-total strong{font-size:21px}.bank-card-mockup{min-height:183px}}
