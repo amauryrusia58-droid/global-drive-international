@@ -1,17 +1,18 @@
 # Global Drive International — Configuración del proyecto real
 
-## Lo realizado en esta entrega V6
+## Lo realizado en esta entrega V7
 - Configuración **web** de Firebase conectada en `js/firebase-config.js` (identificador `global-drive-international`).
 - Acceso del administrador cambiado a **correo y contraseña**, igual que el proveedor que ya habilitaste en Authentication.
 - Módulo Firebase preparado para conectar con Firestore/Storage; NO se han tocado tus reglas remotas ni habilitado la recepción pública.
-- `privacyApproved: false`, pagos bancarios desactivados y `adminUid` sin completar para no abrir acceso sin verificarlo.
+- UID del administrador configurado en la app y en las dos reglas locales; el UID fue facilitado por el titular y **aún no ha sido comprobado contra Firebase de forma remota**.
+- `privacyApproved: false` y pagos bancarios desactivados para evitar solicitudes o transferencias antes de completar los preparativos.
 
-## Paso siguiente: copiar el UID
-1. Abre **Firebase → Authentication → Usuarios**.
-2. Copia el UID completo del usuario administrador que ya creaste.
-3. Pega ese UID en `js/firebase-config.js` (`adminUid`) y sustituye el texto `REEMPLAZAR_CON_UID_DE_AUTHENTICATION` por el mismo UID en **`firestore.rules` y `storage.rules`**.
-4. **No publiques todavía las reglas nuevas** hasta que estén terminadas y revisadas (las actuales ya limitan el acceso a tu UID).
-5. No compartas la contraseña con nadie ni la escribas en código o archivos públicos.
+## Paso siguiente: verificar autorización del administrador
+1. El UID facilitado ya está incorporado en `js/firebase-config.js`, `firestore.rules` y `storage.rules`; **no hace falta copiarlo otra vez**.
+2. Verifica en **Firebase → Authentication → Usuarios** que el UID de tu cuenta coincida exactamente.
+3. Tus reglas remotas existentes **no se han modificado**. No publiques las nuevas reglas sin revisarlas y probarlas: incluyen permisos de creación anónima que deben mantenerse cerrados hasta implementar controles antispam y Storage.
+4. Comprueba el acceso con tu cuenta usando `admin.html` bajo HTTPS; el panel puede estar vacío hasta recibir una solicitud de prueba.
+5. Nunca compartas tu contraseña ni subas archivos de cuentas de servicio a GitHub.
 
 ## Activar la recepción de clientes (pendiente)
 1. Firebase Authentication: habilita **Anónimo** además del correo/contraseña, únicamente cuando tengas listas las reglas y protección antiabuso.

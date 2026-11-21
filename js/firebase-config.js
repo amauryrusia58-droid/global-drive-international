@@ -11,7 +11,7 @@ window.GDI_FIREBASE_CONFIG = Object.freeze({
   measurementId: 'G-J3FLJMB564',
   // Copiar ÚNICAMENTE el UID de Firebase Authentication (nunca la contraseña).
   // Debe coincidir con el UID en firestore.rules y storage.rules.
-  adminUid: '',
+  adminUid: 'Tj2ACB3I9OWAa3uZS6uYGtAbxIR2',
   // Opcional: clave pública reCAPTCHA v3 para App Check.
   appCheckSiteKey: '',
   // NO activar hasta: política de privacidad, Storage Blaze, reglas probadas y App Check.

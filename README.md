@@ -1,6 +1,6 @@
 # Global Drive International — Web + recepción Firebase + panel privado
 
-**V6: configuración web real incorporada, pero la recepción de solicitudes permanece desactivada hasta completar seguridad, permisos y Storage.**
+**V7: configuración web y UID del administrador incorporados; la recepción de solicitudes permanece desactivada hasta completar seguridad, permisos y Storage.**
 
 Este proyecto conserva el diseño aprobado de Global Drive International y añade:
 
@@ -9,7 +9,7 @@ Este proyecto conserva el diseño aprobado de Global Drive International y añad
 - `js/app.js`: formulario, categorías múltiples, direcciones, revisión y pago Sberbank.
 - `js/firebase-service.js`: Firebase Authentication, Firestore, Storage y subida de archivos.
 - `js/admin.js`: bandeja de solicitudes, estados, visualización y descarga de archivos, ZIP local.
-- `js/firebase-config.js`: configuración web del proyecto `global-drive-international` ya integrada; falta indicar UID de administrador.
+- `js/firebase-config.js`: configuración web del proyecto `global-drive-international` y UID de administrador facilitado ya integrados.
 - `firestore.rules` y `storage.rules`: normas de acceso por propietario y rol admin.
 - `firebase.json`: reglas para despliegue con Firebase CLI.
 - `admin-tools/set-admin.cjs`: script para conceder el rol `admin` con privilegios de servidor.
@@ -46,7 +46,7 @@ Al pulsar «Enviar solicitud para revisión», si la plataforma está habilitada
 
 ### 2) Publicar las reglas
 
-**No sobrescribas aún las reglas que acabas de publicar en Firebase.** Antes de actualizar Firestore y Storage, sustituye `REEMPLAZAR_CON_UID_DE_AUTHENTICATION` con el UID exacto del administrador y revisa/probar las reglas. Tras validarlas, publica las reglas completas en Firebase Console → Firestore → Rules y Storage → Rules, o utiliza la Firebase CLI desde la carpeta del proyecto:
+**No sobrescribas aún las reglas que acabas de publicar en Firebase.** Ya se incorporó el UID que facilitaste en los archivos locales `firestore.rules` y `storage.rules`; verifica que coincida exactamente con Authentication y revisa/prueba las reglas antes de publicarlas. Tras validarlas, publica las reglas completas en Firebase Console → Firestore → Rules y Storage → Rules, o utiliza la Firebase CLI desde la carpeta del proyecto:
 
 ```bash
 npm install -g firebase-tools
@@ -62,8 +62,8 @@ El despliegue requiere seleccionar **tu proyecto correcto**. Al usar `firestore.
 ### 3) Autorizar tu cuenta de administrador
 
 1. Visita la página `admin.html` publicada e inicia sesión con el correo/contraseña de la cuenta administradora creada en Authentication. Aparecerá «esta cuenta no tiene autorización» hasta configurar su UID o claim.
-2. Copia el **UID** exacto de esa cuenta desde Firebase Console → Authentication → Users.
-3. **Vía sencilla**: coloca el UID exacto en `js/firebase-config.js` (`adminUid`) y en `firestore.rules` y `storage.rules` (`REEMPLAZAR_CON_UID_DE_AUTHENTICATION`), sin publicar estas reglas hasta revisarlas. **Vía alternativa avanzada**: puedes asignar un custom claim `admin` usando Firebase Admin SDK en un equipo con credenciales de servidor, desde `admin-tools/`:
+2. Verifica que el **UID** de esa cuenta en Firebase Console → Authentication → Users coincida con el ya incorporado en los archivos de este ZIP.
+3. **Vía sencilla (configurada en V7)**: acceso por el UID específico dentro de `js/firebase-config.js`, `firestore.rules` y `storage.rules`. No publiques reglas nuevas hasta revisarlas. **Vía alternativa avanzada**: puedes asignar un custom claim `admin` usando Firebase Admin SDK en un equipo con credenciales de servidor, desde `admin-tools/`:
 
 ```bash
 npm install
@@ -98,7 +98,7 @@ CORS **no** sustituye a las reglas de seguridad.
 
 `admin.html` contiene: lista de solicitudes recibidas, búsqueda, filtro de estados, datos personales, categorías múltiples, paquete y duración, dirección de entrega, foto, licencia original y **firma**. Tiene botón **Ver** y **Descargar** por cada archivo, y **Descargar todo (ZIP)** con los tres documentos y el resumen de datos. Los botones de gestión permiten «Marcar en revisión», «Aprobar», «Rechazar» y «Marcar pago como verificado»; el pago **nunca** se considera comprobado por el hecho de que el cliente marque la casilla.
 
-Los documentos privados no se copian a repositorios ni se incluyen en informes públicos. `admin.html` puede tener una URL pública, pero las reglas restringen sus datos y archivos a usuarios con el custom claim `admin`.
+Los documentos privados no se copian a repositorios ni se incluyen en informes públicos. `admin.html` puede tener una URL pública, pero las reglas restringen datos y archivos al UID de administrador autorizado o a un usuario con custom claim `admin` asignado por servidor.
 
 ## Publicación GitHub Pages
 
@@ -106,7 +106,7 @@ Descomprime y sube **los archivos dentro de la carpeta** a la raíz del reposito
 
 ## Limitaciones y pendientes
 
-- La configuración web del proyecto **sí está incluida**, pero las reglas no se han desplegado ni se ha habilitado recepción real; falta copiar el UID exacto y habilitar Storage si se elige el plan Blaze.
+- La configuración web y el UID suministrado **sí están incluidos**, pero las reglas no se han desplegado ni se ha habilitado recepción real; falta comprobar el UID y configurar Storage con la facturación requerida.
 - Las reglas están preparadas, pero **no se han desplegado ni probado contra un emulador/entorno Firebase propio**: probarlas antes de permitir documentos reales.
 - No hay confirmación bancaria automática. La cuenta Sberbank debe verificarse antes de habilitar cobros.
 - La eliminación programada de archivos/datos y los mecanismos de recuperación de cargas interrumpidas quedan pendientes de una configuración operativa antes del lanzamiento.
