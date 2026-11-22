@@ -27,7 +27,7 @@
   const labelYear = (n) => `${n} ${n === 1 ? 'año' : 'años'}`;
   const get = (name) => form.elements.namedItem(name);
   const categories = () => $$('input[name="licenseCategories"]:checked', form).map((input) => input.value === 'Otra' ? `Otra: ${val('otherCategory')}` : input.value);
-  const bankIsConfigured = () => Boolean(settings.sberbank?.enabled && /^\d{16,19}$/.test(String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '')) && String(settings.sberbank?.recipientName || '').trim());
+  const bankIsConfigured = () => Boolean(settings.sberbank?.enabled && /^\d{16,19}$/.test(String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '')));
   const bankCopyText = () => {
     const digits = String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '');
     return /^\d{16,19}$/.test(digits) ? digits : 'SBERBANK-CUENTA-PENDIENTE';
@@ -215,10 +215,7 @@
         firstInvalid ||= get('licenseExpiry');
       }
     }
-    if (n === 5 && !internalTest && bankIsConfigured() && !$('#paymentDeclared').checked) {
-      error($('#paymentDeclared'), 'Marca esta casilla solo después de realizar la transferencia.');
-      firstInvalid ||= $('#paymentDeclared');
-    }
+    // La solicitud se puede enviar sin realizar ni declarar un pago.
     if (n === 1 && !get('package').value) firstInvalid ||= get('package');
     if (n === 1 && !$('input[name="duration"]:checked', form)) firstInvalid ||= $('input[name="duration"]', form);
     if (firstInvalid) {
@@ -344,12 +341,17 @@
     const number = String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '');
     const hasNumber = /^\d{16,19}$/.test(number);
     $('#bankCardNumber').textContent = configured && hasNumber ? number.replace(/(\d{4})(?=\d)/g, '$1 ').trim() : 'PAGOS NO HABILITADOS';
-    $('#bankCardHolder').textContent = settings.sberbank?.recipientName || 'TITULAR PENDIENTE';
-    $('#bankCardBadge').textContent = configured ? 'CUENTA HABILITADA' : 'PAGOS AÚN NO HABILITADOS';
+    // Nombre comercial decorativo: no se presenta como nombre del titular bancario.
+    $('#bankCardHolder').textContent = 'GLOBAL DRIVE INTERNATIONAL';
+    $('#bankCardBadge').textContent = configured ? 'TRANSFERENCIA MANUAL · RUB' : 'PAGOS AÚN NO HABILITADOS';
     $('#bankCopyValue').textContent = configured ? bankCopyText() : 'NO DISPONIBLE';
     $('#copyBankDetails').disabled = !configured;
-    $('#paymentTestNotice').hidden = internalTest ? false : configured;
-    if (internalTest) $('#paymentTestNotice').textContent = 'PRUEBA INTERNA: NO TRANSFIERAS DINERO. Solo comprobaremos los datos y los archivos ficticios; el estado del pago quedará pendiente.';
+    $('#paymentTestNotice').hidden = false;
+    $('#paymentTestNotice').textContent = internalTest
+      ? 'PRUEBA INTERNA: NO TRANSFIERAS DINERO. Usa solo datos ficticios; el estado del pago quedará pendiente.'
+      : configured
+        ? 'Puedes enviar la solicitud sin pagar. Si vas a transferir, verifica en Sberbank el nombre real del destinatario antes de confirmar. Global Drive International es la marca del servicio, no el nombre verificado del titular bancario. Los pagos se comprueban manualmente.'
+        : 'Los pagos aún no están habilitados. Puedes enviar la solicitud para revisión sin realizar una transferencia.';
     $('#copyFeedback').textContent = '';
     $('#paymentDeclared').disabled = internalTest || !configured;
     $('.payment-declaration').classList.toggle('is-disabled', !configured);
@@ -370,7 +372,7 @@
         if (!copied) throw new Error('Copia no permitida');
       }
       $('#copyFeedback').textContent = configured
-        ? 'Número de tarjeta copiado. Verifica el destinatario antes de transferir.'
+        ? 'Número de tarjeta copiado. Verifica en Sberbank el titular real antes de transferir.'
         : 'Número de tarjeta copiado para consulta. Los pagos aún no están habilitados; no envíes dinero.';
     } catch {
       $('#copyFeedback').textContent = `Copia manual: ${reference}`;
