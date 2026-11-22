@@ -193,10 +193,15 @@ const grid=$('#documentGrid');grid.replaceChildren();
       else await window.GDI_DATA.updateAdmin(id,fields);
       const current=all.find(x=>x.id===id);
       if(current){current.data={...current.data,...fields};lastDetailFingerprint='';refresh();}
-      // Correo transaccional: solo después de guardar una aprobación real en Supabase.
-      // Nunca contiene la clave de Brevo en el navegador.
-      if(fields.status==='approved' && row.source==='supabase' && !row.data.isTest){
-        notice('Solicitud aprobada. Comprobando envío del correo…');
+      // V11.1: las aprobaciones de prueba internas envían aviso únicamente al
+      // correo remitente de Brevo configurado en los secretos del servidor.
+      // No se crean registros públicos ni se consumen los límites por IP/correo.
+      const isApproval=fields.status==='approved';
+      const testEmail=Boolean(row.data.isTest);
+      if(isApproval && (testEmail || row.source==='supabase')){
+        notice(testEmail
+          ? 'Prueba aprobada. Comprobando correo de prueba del administrador…'
+          : 'Solicitud aprobada. Comprobando envío del correo al cliente…');
         try {
           const {auth}=await window.GDI_DATA.init();
           if(!auth.currentUser)throw new Error('Debes iniciar sesión de administrador.');
@@ -206,22 +211,26 @@ const grid=$('#documentGrid');grid.replaceChildren();
           const response=await fetch(cfg.url+'/functions/v1/gdi-approval-email',{
             method:'POST',mode:'cors',credentials:'omit',cache:'no-store',
             headers:{'Content-Type':'application/json',apikey:cfg.publishableKey,Authorization:'Bearer '+token},
-            body:JSON.stringify({requestId:id})
+            body:JSON.stringify(testEmail? {mode:'test',testRequestId:id}:{requestId:id})
           });
           let result={};try{result=await response.json();}catch{}
           if(!response.ok)throw new Error(result.error||'Error HTTP '+response.status);
-          notice(result.status==='already_sent'
-            ? 'Solicitud aprobada. El aviso ya había sido enviado a este cliente.'
-            : result.status==='sent'
-            ? 'Solicitud aprobada y aviso enviado por correo al cliente.'
-            : 'Solicitud aprobada. El aviso de correo está pendiente de confirmación.');
+          if(testEmail){
+            if(result.status!=='test_sent')throw new Error('Brevo no confirmó la prueba.');
+            notice('Prueba aprobada y correo de prueba aceptado por Brevo. Revisa tu correo remitente y la carpeta de spam. No se envió a un cliente.');
+          }else{
+            notice(result.status==='already_sent'
+              ? 'Solicitud aprobada. El aviso ya había sido enviado a este cliente.'
+              : result.status==='sent'
+              ? 'Solicitud aprobada y aviso enviado por correo al cliente.'
+              : 'Solicitud aprobada. El aviso de correo está pendiente de confirmación.');
+          }
         }catch(emailError){
-          console.error('No se pudo confirmar el correo de aprobación:',emailError);
-          notice('SOLICITUD APROBADA, pero correo NO confirmado: '+(emailError.message||'error de red')+'. Revisa la función gdi-approval-email en Supabase.');
+          console.error('No se pudo confirmar el aviso de aprobación:',emailError);
+          notice((testEmail?'PRUEBA APROBADA':'SOLICITUD APROBADA')+', pero correo NO confirmado: '+
+            (emailError.message||'error de red')+'. Revisa Logs de gdi-approval-email en Supabase.');
         }
-      }else if(fields.status==='approved'&&row.data.isTest)
-        notice('Prueba aprobada en Firebase. No hay pagos reales ni verificación bancaria.');
-      else notice('Cambio de estado guardado correctamente.');
+      }else notice('Cambio de estado guardado correctamente.');
     } catch(e){
       console.error('No se pudo actualizar la solicitud:',e);
       const code=e?.code?' ('+e.code+')':'';
