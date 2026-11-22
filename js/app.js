@@ -265,10 +265,10 @@
       item('Archivos seleccionados', docs)
     );
     updateTotal();
-    if (!window.GDI_DATA?.receptionReady) {
+    if (!((internalTest && window.GDI_DATA?.receptionReady) || (!internalTest && window.GDI_PUBLIC_INTAKE?.configured))) {
       const status = $('#submissionStatus');
       status.hidden = false;
-      status.textContent = 'Recepción aún no habilitada: Firebase y Supabase están configurados, pero falta un servicio seguro para recibir archivos y la política de privacidad completa. Puedes descargar el resumen; no se guardarán documentos.';
+      status.textContent = 'Recepción pública temporalmente no habilitada: completa la configuración del servicio de recepción y la información de privacidad. Puedes descargar el resumen sin enviar documentos.';
       $('#downloadSummary').hidden = false;
     } else {
       $('#submissionStatus').hidden = true;
@@ -306,9 +306,9 @@
     if (state.sending || !validateStep(5)) return;
     const status = $('#paymentSubmissionStatus');
     status.hidden = false;
-    const gateway = window.GDI_DATA;
-    if (!gateway?.receptionReady) {
-      status.textContent = 'Solicitud NO enviada: aún falta programar el servicio de recepción segura de archivos y completar la privacidad. La tarjeta Sberbank es solo una referencia, no un pago habilitado.';
+    const gateway = internalTest ? window.GDI_DATA : window.GDI_PUBLIC_INTAKE;
+    if (!(internalTest ? gateway?.receptionReady : gateway?.configured)) {
+      status.textContent = 'Solicitud NO enviada: el servicio público sigue en preparación. No se han cargado tus documentos ni se ha realizado ningún pago.';
       $('#downloadSummary').hidden = false;
       status.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -324,8 +324,8 @@
     status.textContent = 'Conectando con el receptor protegido…';
     try {
       const reply = await gateway.submit(form, state.package, state.year, categories(), Boolean($('#paymentDeclared').checked), (message)=>{status.textContent=message;});
-      if (!reply?.reference) throw new Error('Firebase no confirmó la referencia.');
-      status.textContent = `PRUEBA REGISTRADA correctamente. Referencia: ${reply.reference}. Abre admin.html para comprobar los datos y las tres imágenes. Ningún pago fue realizado.`;
+      if (!reply?.reference) throw new Error('No se pudo confirmar la referencia de la solicitud.');
+      status.textContent = internalTest ? `PRUEBA REGISTRADA correctamente. Referencia: ${reply.reference}. Abre admin.html para comprobar los datos y las tres imágenes. Ningún pago fue realizado.` : `Solicitud recibida para revisión. Referencia: ${reply.reference}. Conserva este número. No se ha cobrado ni verificado ningún pago.`;
       $('#submitRequest').hidden = true;
       $('#downloadSummary').hidden = false;
     } catch (err) {
@@ -343,10 +343,11 @@
     const configured = bankIsConfigured();
     const number = String(settings.sberbank?.cardNumber || '').replace(/\s+/g, '');
     const hasNumber = /^\d{16,19}$/.test(number);
-    $('#bankCardNumber').textContent = hasNumber ? number.replace(/(\d{4})(?=\d)/g, '$1 ').trim() : 'SIN CONFIGURAR';
+    $('#bankCardNumber').textContent = configured && hasNumber ? number.replace(/(\d{4})(?=\d)/g, '$1 ').trim() : 'PAGOS NO HABILITADOS';
     $('#bankCardHolder').textContent = settings.sberbank?.recipientName || 'TITULAR PENDIENTE';
     $('#bankCardBadge').textContent = configured ? 'CUENTA HABILITADA' : 'PAGOS AÚN NO HABILITADOS';
-    $('#bankCopyValue').textContent = bankCopyText();
+    $('#bankCopyValue').textContent = configured ? bankCopyText() : 'NO DISPONIBLE';
+    $('#copyBankDetails').disabled = !configured;
     $('#paymentTestNotice').hidden = internalTest ? false : configured;
     if (internalTest) $('#paymentTestNotice').textContent = 'PRUEBA INTERNA: NO TRANSFIERAS DINERO. Solo comprobaremos los datos y los archivos ficticios; el estado del pago quedará pendiente.';
     $('#copyFeedback').textContent = '';
