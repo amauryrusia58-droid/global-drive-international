@@ -2,11 +2,11 @@
 (() => {
   'use strict';
   const $ = (sel,root=document)=>root.querySelector(sel);
-  let all=[], selection=null, stopListening=null, previewURLs=[], lastDetailFingerprint='';
+  let all=[], firestoreRows=[], publicRows=[], selection=null, stopListening=null, publicTimer=null, previewURLs=[], lastDetailFingerprint='';
   const labels={new:'Nueva',review:'En revisión',approved:'Aprobada',rejected:'Rechazada',uploading:'Carga incompleta'};
   const keyLabel={photo:'Fotografía personal',license:'Licencia original',signature:'Firma'};
 let previewGeneration=0;
-  const escDate=(v)=> v?.toDate ? v.toDate().toLocaleString('es-ES') : '—';
+  const escDate=(v)=> {const date=v?.toDate ? v.toDate() : (typeof v==='string'||typeof v==='number' ? new Date(v) : null);return date&&!Number.isNaN(date.getTime())?date.toLocaleString('es-ES'):'—';};
   const price=(n)=>Number(n).toLocaleString('ru-RU',{maximumFractionDigits:0}).replace(/\u00a0/g,'.')+' ₽';
   const text=(v)=>String(v ?? '—');
   const notice=(message)=>{$('#detailMessage').textContent=message;$('#detailMessage').hidden=false;};
@@ -27,6 +27,18 @@ let previewGeneration=0;
   function resetPreviews() { previewGeneration++;closeViewer();for (const u of previewURLs) URL.revokeObjectURL(u);previewURLs=[]; }
 function closeViewer(){ const overlay=$('#gdiImageViewer'); if(overlay)overlay.hidden=true; }
 function openViewer(src,alt){$('#gdiViewerImage').src=src;$('#gdiViewerImage').alt=alt;$('#gdiImageViewer').hidden=false;$('#gdiCloseViewer').focus();}
+  function mergeSources() {
+    all=[...firestoreRows,...publicRows].sort((a,b)=>{
+      const stamp=(row)=>{const v=row.data.createdAt;return v?.toMillis?.() || new Date(v||0).getTime() || 0;};
+      return stamp(b)-stamp(a);
+    });
+    if(!selection&&all.length)selection=all.find(x=>x.data.status!=='uploading')?.id||null;
+    refresh();$('#detailsEmpty').hidden=!!selection;$('#detailsContent').hidden=!selection;
+  }
+  async function refreshPublic() {
+    try { publicRows=await window.GDI_PUBLIC_ADMIN.list();mergeSources(); }
+    catch(e) {console.error('Solicitudes públicas:',e);notice('Aviso: no se pudieron consultar las solicitudes públicas de Supabase: '+e.message);}
+  }
   function refresh() {
     $('#countTotal').textContent=all.filter(x=>x.data.status!=='uploading').length;
     $('#countPending').textContent=all.filter(x=>x.data.status!=='uploading'&&x.data.paymentStatus!=='verified').length;
@@ -70,7 +82,7 @@ function openViewer(src,alt){$('#gdiViewerImage').src=src;$('#gdiViewerImage').a
   }
   function setActionButtons(d) {
     const incomplete=d.status==='uploading';
-    $('#verifyPayment').disabled=!!d.isTest||d.paymentStatus==='verified'||incomplete;
+    $('#verifyPayment').disabled=!!d.isTest||d.source==='public'||d.paymentStatus==='verified'||incomplete;
     $('#markReview').disabled=incomplete||d.status==='review';
     $('#approveRequest').disabled=incomplete||d.status==='approved';
     $('#rejectRequest').disabled=incomplete||d.status==='rejected';
@@ -91,7 +103,7 @@ function openViewer(src,alt){$('#gdiViewerImage').src=src;$('#gdiViewerImage').a
     $('#categoryList').replaceChildren(...(d.categories||[]).map(c=>{const s=document.createElement('span');s.textContent=c;return s;}));
     $('#deliveryList').replaceChildren(buildDl([['País',delivery.deliveryCountry],['Ciudad',delivery.deliveryCity],['Dirección',delivery.deliveryAddress],['Código postal',delivery.deliveryZip],['Observaciones',delivery.notes]]));
     $('#paymentList').replaceChildren(buildDl([
-      ['Método','Sberbank (RUB)'],['Referencia bancaria','Terminada en 9713'],['Declaración del cliente',d.paymentDeclared?'Indica que transfirió (sin verificar)':'No declaró transferencia'],
+      ['Método','Sberbank (RUB) · no habilitado en recepción pública'],['Referencia bancaria','Terminada en 9713'],['Declaración del cliente',d.paymentDeclared?'Indica que transfirió (sin verificar)':'No declaró transferencia'],
       ['Comprobación',d.paymentStatus==='verified'?'Verificada por administrador':'Pendiente de comprobación'],['Monto declarado',price(d.priceRUB)]]));
     setActionButtons(d);
     resetPreviews();const currentGeneration=previewGeneration;
@@ -175,14 +187,15 @@ const grid=$('#documentGrid');grid.replaceChildren();
     if(!id||!row)return;
     if(fields.status===row.data.status){notice('La solicitud ya tiene ese estado.');return;}
     for(const key of ['verifyPayment','markReview','approveRequest','rejectRequest'])$('#'+key).disabled=true;
-    notice('Guardando cambio en Firebase…');
+    notice('Guardando cambio en '+(row.source==='supabase'?'Supabase':'Firebase')+'…');
     try {
-      await window.GDI_DATA.updateAdmin(id,fields);
+      if(row.source==='supabase') await window.GDI_PUBLIC_ADMIN.update(id,fields);
+      else await window.GDI_DATA.updateAdmin(id,fields);
       const current=all.find(x=>x.id===id);
       if(current){current.data={...current.data,...fields};lastDetailFingerprint='';refresh();}
       if(fields.status==='approved'&&row.data.isTest)
         notice('Prueba aprobada en Firebase. No hay pagos reales ni verificación bancaria.');
-      else notice('Cambio guardado en Firebase correctamente.');
+      else notice('Cambio de estado guardado correctamente.');
     } catch(e){
       console.error('No se pudo actualizar la solicitud:',e);
       const code=e?.code?' ('+e.code+')':'';
@@ -193,7 +206,7 @@ const grid=$('#documentGrid');grid.replaceChildren();
     }
   }
   async function authorizedUI(user,isAdmin,error){
-    if(!isAdmin){resetPreviews();stopListening?.();stopListening=null;all=[];selection=null;$('#adminWorkspace').hidden=true;$('#adminLogin').hidden=false;
+    if(!isAdmin){resetPreviews();stopListening?.();stopListening=null;if(publicTimer)clearInterval(publicTimer);publicTimer=null;firestoreRows=[];publicRows=[];all=[];selection=null;$('#adminWorkspace').hidden=true;$('#adminLogin').hidden=false;
       if(error)setLogin('Error al comprobar acceso: '+error.message,true);
       else if(!user)setLogin('Utiliza la cuenta de correo y contraseña que creaste en Firebase Authentication.');
       else setLogin('Esta cuenta no tiene autorización de administrador. Contacta con el responsable de Firebase para asignar el rol.',true);
@@ -202,10 +215,12 @@ const grid=$('#documentGrid');grid.replaceChildren();
     $('#adminIdentity').textContent=user.email||'Administrador';$('#adminLogin').hidden=true;$('#adminWorkspace').hidden=false;
     if(stopListening)return;
     try{stopListening=await window.GDI_DATA.listenAdmin((snapshot)=>{
-      all=snapshot.docs.map(s=>({id:s.id,data:s.data()}));if(!selection && all.length)selection=all.find(x=>x.data.status!=='uploading')?.id||null;
-      refresh();$('#detailsEmpty').hidden=!!selection;$('#detailsContent').hidden=!selection;
-    },(e)=>{console.error(e);notice('Error al consultar solicitudes: '+e.message);});}
+      firestoreRows=snapshot.docs.map(s=>({id:s.id,data:s.data(),source:'firestore'}));
+      mergeSources();
+    },(e)=>{console.error(e);notice('Error al consultar solicitudes de Firebase: '+e.message);});}
     catch(e){console.error(e);notice('No se pudo conectar con Firestore: '+e.message);}
+    await refreshPublic();
+    if(!publicTimer)publicTimer=setInterval(refreshPublic,20000);
   }
   async function start(){
     $('#adminLoginForm').addEventListener('submit',async(event)=>{
