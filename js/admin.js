@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = (sel,root=document)=>root.querySelector(sel);
-  let all=[], selection=null, stopListening=null, previewURLs=[];
+  let all=[], selection=null, stopListening=null, previewURLs=[], lastDetailFingerprint='';
   const labels={new:'Nueva',review:'En revisión',approved:'Aprobada',rejected:'Rechazada',uploading:'Carga incompleta'};
   const keyLabel={photo:'Fotografía personal',license:'Licencia original',signature:'Firma'};
 let previewGeneration=0;
@@ -49,9 +49,34 @@ function openViewer(src,alt){$('#gdiViewerImage').src=src;$('#gdiViewerImage').a
       const meta=document.createElement('small');meta.textContent=(x.data.isTest?'PRUEBA · ':'')+(x.data.packageCode==='premium'?'Premium · 28 idiomas':'Estándar · 8 idiomas')+' · '+escDate(x.data.createdAt);
       b.append(ref,bd,name,meta);b.addEventListener('click',()=>selectRequest(x.id));wrap.append(b);
     });
-    if(selection){const x=all.find(r=>r.id===selection);if(x)renderDetail(x);else{$('#detailsContent').hidden=true;$('#detailsEmpty').hidden=false;selection=null;}}
+    if (selection) {
+      const x=all.find(r=>r.id===selection);
+      if(x) {
+        // El filtro/buscador no debe reiniciar las vistas previas cada vez.
+        const signature=selection+'|'+JSON.stringify(x.data);
+        if(signature!==lastDetailFingerprint){lastDetailFingerprint=signature;renderDetail(x);}
+      } else {
+        $('#detailsContent').hidden=true;$('#detailsEmpty').hidden=false;
+        selection=null;lastDetailFingerprint='';resetPreviews();
+      }
+    }
   }
-  function selectRequest(id){selection=id;$('#detailsEmpty').hidden=true;$('#detailsContent').hidden=false;resetPreviews();refresh();}
+  function selectRequest(id){
+    if (selection===id) return;
+    selection=id;lastDetailFingerprint='';
+    $('#detailsEmpty').hidden=true;$('#detailsContent').hidden=false;
+    $('#detailMessage').hidden=true;
+    refresh();
+  }
+  function setActionButtons(d) {
+    const incomplete=d.status==='uploading';
+    $('#verifyPayment').disabled=!!d.isTest||d.paymentStatus==='verified'||incomplete;
+    $('#markReview').disabled=incomplete||d.status==='review';
+    $('#approveRequest').disabled=incomplete||d.status==='approved';
+    $('#rejectRequest').disabled=incomplete||d.status==='rejected';
+    // Aprobar una prueba solo cambia el estado en Firestore, nunca confirma pagos.
+    $('#approveRequest').textContent=d.isTest?'✓ Aprobar prueba (sin pagos)':'✓ Aprobar solicitud';
+  }
   function renderDetail(row){
     const d=row.data,p=d.personal||{},delivery=d.delivery||{};
     $('#detailReference').textContent='Solicitud #'+row.id+(d.isTest?' · PRUEBA INTERNA':'');
@@ -68,35 +93,57 @@ function openViewer(src,alt){$('#gdiViewerImage').src=src;$('#gdiViewerImage').a
     $('#paymentList').replaceChildren(buildDl([
       ['Método','Sberbank (RUB)'],['Referencia bancaria','Terminada en 9713'],['Declaración del cliente',d.paymentDeclared?'Indica que transfirió (sin verificar)':'No declaró transferencia'],
       ['Comprobación',d.paymentStatus==='verified'?'Verificada por administrador':'Pendiente de comprobación'],['Monto declarado',price(d.priceRUB)]]));
-    $('#verifyPayment').disabled=d.isTest||d.paymentStatus==='verified'||d.status==='uploading';
-    $('#markReview').disabled=d.status==='uploading';$('#approveRequest').disabled=!!d.isTest||d.status==='uploading';$('#rejectRequest').disabled=d.status==='uploading';
-    $('#detailMessage').hidden=true;
+    setActionButtons(d);
     resetPreviews();const currentGeneration=previewGeneration;
 const grid=$('#documentGrid');grid.replaceChildren();
     for(const key of ['photo','license','signature']) {
       const path=d.files?.[key], card=document.createElement('div');card.className='document';
       const heading=document.createElement('h4');heading.textContent=keyLabel[key];
-      const preview=document.createElement('div');preview.className='preview';preview.textContent=path?'Vista protegida':'Archivo pendiente';
+      const preview=document.createElement('div');preview.className='preview';
+      preview.textContent=path?'Vista privada · cargando…':'Archivo pendiente';
       const buttons=document.createElement('div');buttons.className='document-actions';
-      if(path){
-        const show=document.createElement('button');show.className='outline';show.textContent='Ver';show.type='button';showButton=show;
-        show.addEventListener('click',async()=>{
-          show.disabled=true;preview.textContent='Cargando…';try{
-            const blob=await window.GDI_DATA.loadPrivateFile(path);if(!blob.type.startsWith('image/')){preview.textContent='Documento PDF · usa Descargar';return;}
-            if (currentGeneration !== previewGeneration || !preview.isConnected) return;
-            const url=URL.createObjectURL(blob);previewURLs.push(url);
-            const img=document.createElement('img');img.src=url;img.alt=keyLabel[key];img.title='Ampliar imagen';
-img.addEventListener('click',()=>openViewer(url,keyLabel[key]));
-if (currentGeneration !== previewGeneration || !preview.isConnected) return;
-preview.replaceChildren(img);
-          }catch(e){preview.textContent='No se pudo abrir: '+e.message;}finally{show.disabled=false;}
-        });buttons.append(show);
+      if(path) {
+        // La variable debe declararse: antes 'showButton=show' provocaba ReferenceError.
+        const show=document.createElement('button');
+        show.className='outline';show.textContent='Ver';show.type='button';
+        let previewUrl=null;
+        const loadPreview=async(openAfter=false)=>{
+          if(previewUrl){
+            if(openAfter) openViewer(previewUrl,keyLabel[key]);
+            return;
+          }
+          if(show.disabled) return;
+          show.disabled=true;preview.textContent='Cargando…';
+          try {
+            const blob=await window.GDI_DATA.loadPrivateFile(path);
+            if(currentGeneration!==previewGeneration || !preview.isConnected)return;
+            const isImage=blob.type.startsWith('image/') || /\.(jpe?g|png)$/i.test(path);
+            if(!isImage){preview.textContent='Documento PDF · usa Descargar';return;}
+            const url=URL.createObjectURL(blob);previewURLs.push(url);previewUrl=url;
+            const img=document.createElement('img');img.src=url;img.alt=keyLabel[key];
+            img.title='Ampliar imagen';img.loading='eager';
+            img.addEventListener('click',()=>openViewer(url,keyLabel[key]));
+            img.addEventListener('error',()=>{if(currentGeneration===previewGeneration)preview.textContent='No se pudo mostrar la vista previa. Usa Descargar.';});
+            preview.replaceChildren(img);
+            if(openAfter) openViewer(url,keyLabel[key]);
+          } catch(e) {
+            if(currentGeneration===previewGeneration && preview.isConnected)
+              preview.textContent='No se pudo abrir: '+(e?.message||'Error de descarga');
+          } finally {show.disabled=false;}
+        };
+        show.addEventListener('click',()=>loadPreview(true));buttons.append(show);
         const down=document.createElement('button');down.className='primary';down.type='button';down.textContent='Descargar';
-        down.addEventListener('click',async()=>{down.disabled=true;try{const blob=await window.GDI_DATA.loadPrivateFile(path);download(blob,filenameFor(row,key,path));}catch(e){notice('No se pudo descargar el archivo: '+e.message);}finally{down.disabled=false;}});
+        down.addEventListener('click',async()=>{
+          down.disabled=true;
+          try { const blob=await window.GDI_DATA.loadPrivateFile(path);download(blob,filenameFor(row,key,path)); }
+          catch(e){notice('No se pudo descargar el archivo: '+e.message);}
+          finally{down.disabled=false;}
+        });
         buttons.append(down);
-      }
-      card.append(heading,preview,buttons);grid.append(card);
-if(showButton) queueMicrotask(()=>{if(card.isConnected && currentGeneration===previewGeneration) showButton.click();});
+        // Carga privada automática, sin requerir que se pulse Ver.
+        card.append(heading,preview,buttons);grid.append(card);
+        queueMicrotask(()=>{if(card.isConnected && currentGeneration===previewGeneration)loadPreview(false);});
+      } else {card.append(heading,preview,buttons);grid.append(card);}
     }
     $('#downloadAll').disabled=!d.files?.photo || !d.files?.signature || !d.files?.license;
   }
@@ -123,10 +170,27 @@ if(showButton) queueMicrotask(()=>{if(card.isConnected && currentGeneration===pr
       entries.push(['datos-solicitud.json',await json.arrayBuffer()]);download(makeZip(entries),'GlobalDrive-'+row.id+'.zip');notice('Se ha preparado el ZIP de esta solicitud.');
     }catch(e){notice('No se pudo preparar el ZIP: '+e.message);}finally{b.disabled=false;}
   }
-  async function update(fields){if(!selection)return;for(const id of ['verifyPayment','markReview','approveRequest','rejectRequest'])$('#'+id).disabled=true;
-    try{await window.GDI_DATA.updateAdmin(selection,fields);notice('Cambio guardado correctamente.');}
-    catch(e){notice('No se pudo actualizar: '+e.message);}
-    finally{const row=all.find(x=>x.id===selection);if(row)renderDetail(row);}
+  async function update(fields){
+    const id=selection,row=all.find(x=>x.id===id);
+    if(!id||!row)return;
+    if(fields.status===row.data.status){notice('La solicitud ya tiene ese estado.');return;}
+    for(const key of ['verifyPayment','markReview','approveRequest','rejectRequest'])$('#'+key).disabled=true;
+    notice('Guardando cambio en Firebase…');
+    try {
+      await window.GDI_DATA.updateAdmin(id,fields);
+      const current=all.find(x=>x.id===id);
+      if(current){current.data={...current.data,...fields};lastDetailFingerprint='';refresh();}
+      if(fields.status==='approved'&&row.data.isTest)
+        notice('Prueba aprobada en Firebase. No hay pagos reales ni verificación bancaria.');
+      else notice('Cambio guardado en Firebase correctamente.');
+    } catch(e){
+      console.error('No se pudo actualizar la solicitud:',e);
+      const code=e?.code?' ('+e.code+')':'';
+      notice('No se pudo actualizar'+code+': '+(e?.message||'Error desconocido')+'. No se cambió el estado.');
+    } finally {
+      const current=all.find(x=>x.id===id);
+      if(current)setActionButtons(current.data);
+    }
   }
   async function authorizedUI(user,isAdmin,error){
     if(!isAdmin){resetPreviews();stopListening?.();stopListening=null;all=[];selection=null;$('#adminWorkspace').hidden=true;$('#adminLogin').hidden=false;
@@ -159,7 +223,7 @@ $('#gdiCloseViewer').addEventListener('click',closeViewer);
 $('#gdiImageViewer').addEventListener('click',(e)=>{if(e.target.id==='gdiImageViewer')closeViewer();});
 document.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeViewer();});
     $('#markReview').addEventListener('click',()=>update({status:'review'}));
-    $('#approveRequest').addEventListener('click',()=>{if(confirm('¿Aprobar esta solicitud? No significa que el pago esté verificado.'))update({status:'approved'});});
+    $('#approveRequest').addEventListener('click',()=>{const r=all.find(x=>x.id===selection);const message=r?.data?.isTest?'¿Aprobar esta solicitud ficticia para comprobar el cambio de estado? No confirma ni cobra pagos.':'¿Aprobar esta solicitud? Esto NO significa que el pago esté verificado.';if(confirm(message))update({status:'approved'});});
     $('#rejectRequest').addEventListener('click',()=>{if(confirm('¿Rechazar esta solicitud?'))update({status:'rejected'});});
     $('#verifyPayment').addEventListener('click',()=>{if(confirm('¿Has comprobado personalmente que el dinero llegó a la cuenta bancaria?'))update({paymentStatus:'verified'});});
     if(!window.GDI_DATA?.configured){setLogin('Falta configurar la aplicación web en js/firebase-config.js.');return;}
