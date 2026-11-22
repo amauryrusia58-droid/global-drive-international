@@ -4,6 +4,7 @@
 (() => {
   'use strict';
   const settings = window.GDI_CONFIG;
+  const internalTest = new URLSearchParams(location.search).get('test') === '1';
   if (!settings || !settings.pricesRUB) {
     console.error('No se pudo cargar js/config.js');
     return;
@@ -15,6 +16,10 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const modal = $('#requestModal');
+  if (internalTest) {
+    document.title = 'Prueba interna de solicitud | Global Drive International';
+    document.getElementById('gdiTestBanner').hidden = false;
+  }
   const dialog = $('.request-dialog', modal);
   const form = $('#requestForm');
   const money = (num) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(num).replace(/\u00a0/g, '.') + ' ₽';
@@ -210,7 +215,7 @@
         firstInvalid ||= get('licenseExpiry');
       }
     }
-    if (n === 5 && bankIsConfigured() && !$('#paymentDeclared').checked) {
+    if (n === 5 && !internalTest && bankIsConfigured() && !$('#paymentDeclared').checked) {
       error($('#paymentDeclared'), 'Marca esta casilla solo después de realizar la transferencia.');
       firstInvalid ||= $('#paymentDeclared');
     }
@@ -320,7 +325,7 @@
     try {
       const reply = await gateway.submit(form, state.package, state.year, categories(), Boolean($('#paymentDeclared').checked), (message)=>{status.textContent=message;});
       if (!reply?.reference) throw new Error('Firebase no confirmó la referencia.');
-      status.textContent = `Solicitud recibida y enviada a revisión. Referencia: ${reply.reference}. El pago permanece pendiente de comprobación manual; esta confirmación no acredita ninguna transferencia.`;
+      status.textContent = `PRUEBA REGISTRADA correctamente. Referencia: ${reply.reference}. Abre admin.html para comprobar los datos y las tres imágenes. Ningún pago fue realizado.`;
       $('#submitRequest').hidden = true;
       $('#downloadSummary').hidden = false;
     } catch (err) {
@@ -329,7 +334,7 @@
     } finally {
       state.sending = false;
       $('#submitRequest').disabled = false;
-      $('#submitRequest').textContent = 'Enviar solicitud para revisión →';
+      $('#submitRequest').textContent = internalTest ? 'Enviar solicitud de prueba →' : 'Enviar solicitud para revisión →';
       status.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
@@ -342,11 +347,12 @@
     $('#bankCardHolder').textContent = settings.sberbank?.recipientName || 'TITULAR PENDIENTE';
     $('#bankCardBadge').textContent = configured ? 'CUENTA HABILITADA' : 'PAGOS AÚN NO HABILITADOS';
     $('#bankCopyValue').textContent = bankCopyText();
-    $('#paymentTestNotice').hidden = configured;
+    $('#paymentTestNotice').hidden = internalTest ? false : configured;
+    if (internalTest) $('#paymentTestNotice').textContent = 'PRUEBA INTERNA: NO TRANSFIERAS DINERO. Solo comprobaremos los datos y los archivos ficticios; el estado del pago quedará pendiente.';
     $('#copyFeedback').textContent = '';
-    $('#paymentDeclared').disabled = !configured;
+    $('#paymentDeclared').disabled = internalTest || !configured;
     $('.payment-declaration').classList.toggle('is-disabled', !configured);
-    $('#submitRequest').textContent = 'Enviar solicitud para revisión →';
+    $('#submitRequest').textContent = internalTest ? 'Enviar solicitud de prueba →' : 'Enviar solicitud para revisión →';
   }
 
   async function copyBankReference() {

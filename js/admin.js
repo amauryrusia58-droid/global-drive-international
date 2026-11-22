@@ -5,6 +5,7 @@
   let all=[], selection=null, stopListening=null, previewURLs=[];
   const labels={new:'Nueva',review:'En revisión',approved:'Aprobada',rejected:'Rechazada',uploading:'Carga incompleta'};
   const keyLabel={photo:'Fotografía personal',license:'Licencia original',signature:'Firma'};
+let previewGeneration=0;
   const escDate=(v)=> v?.toDate ? v.toDate().toLocaleString('es-ES') : '—';
   const price=(n)=>Number(n).toLocaleString('ru-RU',{maximumFractionDigits:0}).replace(/\u00a0/g,'.')+' ₽';
   const text=(v)=>String(v ?? '—');
@@ -23,7 +24,9 @@
   function badge(status) {
     const b=document.createElement('span');b.className='status '+String(status||'');b.textContent=labels[status]||status||'—';return b;
   }
-  function resetPreviews() { for (const u of previewURLs) URL.revokeObjectURL(u);previewURLs=[]; }
+  function resetPreviews() { previewGeneration++;closeViewer();for (const u of previewURLs) URL.revokeObjectURL(u);previewURLs=[]; }
+function closeViewer(){ const overlay=$('#gdiImageViewer'); if(overlay)overlay.hidden=true; }
+function openViewer(src,alt){$('#gdiViewerImage').src=src;$('#gdiViewerImage').alt=alt;$('#gdiImageViewer').hidden=false;$('#gdiCloseViewer').focus();}
   function refresh() {
     $('#countTotal').textContent=all.filter(x=>x.data.status!=='uploading').length;
     $('#countPending').textContent=all.filter(x=>x.data.status!=='uploading'&&x.data.paymentStatus!=='verified').length;
@@ -43,7 +46,7 @@
       const p=x.data.personal||{};
       const ref=document.createElement('strong');ref.className='ref';ref.textContent='#'+x.id.slice(0,12);
       const bd=badge(x.data.status);const name=document.createElement('strong');name.textContent=[p.firstName,p.lastName].join(' ').trim()||'Sin nombre';
-      const meta=document.createElement('small');meta.textContent=(x.data.packageCode==='premium'?'Premium · 28 idiomas':'Estándar · 8 idiomas')+' · '+escDate(x.data.createdAt);
+      const meta=document.createElement('small');meta.textContent=(x.data.isTest?'PRUEBA · ':'')+(x.data.packageCode==='premium'?'Premium · 28 idiomas':'Estándar · 8 idiomas')+' · '+escDate(x.data.createdAt);
       b.append(ref,bd,name,meta);b.addEventListener('click',()=>selectRequest(x.id));wrap.append(b);
     });
     if(selection){const x=all.find(r=>r.id===selection);if(x)renderDetail(x);else{$('#detailsContent').hidden=true;$('#detailsEmpty').hidden=false;selection=null;}}
@@ -51,7 +54,7 @@
   function selectRequest(id){selection=id;$('#detailsEmpty').hidden=true;$('#detailsContent').hidden=false;resetPreviews();refresh();}
   function renderDetail(row){
     const d=row.data,p=d.personal||{},delivery=d.delivery||{};
-    $('#detailReference').textContent='Solicitud #'+row.id;
+    $('#detailReference').textContent='Solicitud #'+row.id+(d.isTest?' · PRUEBA INTERNA':'');
     $('#detailStatus').replaceWith((()=>{const b=badge(d.status);b.id='detailStatus';return b;})());
     $('#personalList').replaceChildren(buildDl([
       ['Nombre',p.firstName],['Apellidos',p.lastName],['País',p.country],['Ciudad',p.city],['Dirección particular',p.homeAddress],
@@ -65,22 +68,27 @@
     $('#paymentList').replaceChildren(buildDl([
       ['Método','Sberbank (RUB)'],['Referencia bancaria','Terminada en 9713'],['Declaración del cliente',d.paymentDeclared?'Indica que transfirió (sin verificar)':'No declaró transferencia'],
       ['Comprobación',d.paymentStatus==='verified'?'Verificada por administrador':'Pendiente de comprobación'],['Monto declarado',price(d.priceRUB)]]));
-    $('#verifyPayment').disabled=d.paymentStatus==='verified'||d.status==='uploading';
-    $('#markReview').disabled=d.status==='uploading';$('#approveRequest').disabled=d.status==='uploading';$('#rejectRequest').disabled=d.status==='uploading';
+    $('#verifyPayment').disabled=d.isTest||d.paymentStatus==='verified'||d.status==='uploading';
+    $('#markReview').disabled=d.status==='uploading';$('#approveRequest').disabled=!!d.isTest||d.status==='uploading';$('#rejectRequest').disabled=d.status==='uploading';
     $('#detailMessage').hidden=true;
-    const grid=$('#documentGrid');grid.replaceChildren();
+    resetPreviews();const currentGeneration=previewGeneration;
+const grid=$('#documentGrid');grid.replaceChildren();
     for(const key of ['photo','license','signature']) {
       const path=d.files?.[key], card=document.createElement('div');card.className='document';
       const heading=document.createElement('h4');heading.textContent=keyLabel[key];
       const preview=document.createElement('div');preview.className='preview';preview.textContent=path?'Vista protegida':'Archivo pendiente';
       const buttons=document.createElement('div');buttons.className='document-actions';
       if(path){
-        const show=document.createElement('button');show.className='outline';show.textContent='Ver';show.type='button';
+        const show=document.createElement('button');show.className='outline';show.textContent='Ver';show.type='button';showButton=show;
         show.addEventListener('click',async()=>{
           show.disabled=true;preview.textContent='Cargando…';try{
             const blob=await window.GDI_DATA.loadPrivateFile(path);if(!blob.type.startsWith('image/')){preview.textContent='Documento PDF · usa Descargar';return;}
+            if (currentGeneration !== previewGeneration || !preview.isConnected) return;
             const url=URL.createObjectURL(blob);previewURLs.push(url);
-            const img=document.createElement('img');img.src=url;img.alt=keyLabel[key];preview.replaceChildren(img);
+            const img=document.createElement('img');img.src=url;img.alt=keyLabel[key];img.title='Ampliar imagen';
+img.addEventListener('click',()=>openViewer(url,keyLabel[key]));
+if (currentGeneration !== previewGeneration || !preview.isConnected) return;
+preview.replaceChildren(img);
           }catch(e){preview.textContent='No se pudo abrir: '+e.message;}finally{show.disabled=false;}
         });buttons.append(show);
         const down=document.createElement('button');down.className='primary';down.type='button';down.textContent='Descargar';
@@ -88,6 +96,7 @@
         buttons.append(down);
       }
       card.append(heading,preview,buttons);grid.append(card);
+if(showButton) queueMicrotask(()=>{if(card.isConnected && currentGeneration===previewGeneration) showButton.click();});
     }
     $('#downloadAll').disabled=!d.files?.photo || !d.files?.signature || !d.files?.license;
   }
@@ -146,6 +155,9 @@
     for(const id of ['adminLogout','logoutDenied'])$('#'+id).addEventListener('click',()=>window.GDI_DATA.signOutAdmin().catch((e)=>setLogin(e.message,true)));
     $('#searchRequests').addEventListener('input',refresh);$('#filterStatus').addEventListener('change',refresh);
     $('#downloadAll').addEventListener('click',zipAll);
+$('#gdiCloseViewer').addEventListener('click',closeViewer);
+$('#gdiImageViewer').addEventListener('click',(e)=>{if(e.target.id==='gdiImageViewer')closeViewer();});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeViewer();});
     $('#markReview').addEventListener('click',()=>update({status:'review'}));
     $('#approveRequest').addEventListener('click',()=>{if(confirm('¿Aprobar esta solicitud? No significa que el pago esté verificado.'))update({status:'approved'});});
     $('#rejectRequest').addEventListener('click',()=>{if(confirm('¿Rechazar esta solicitud?'))update({status:'rejected'});});

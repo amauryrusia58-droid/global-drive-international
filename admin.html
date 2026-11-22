@@ -15,6 +15,7 @@
   <aside class="sidebar"><div class="side-heading">GLOBAL DRIVE · GESTIÓN</div>
     <button class="side-action active" type="button" id="navSubmissions">▤ &nbsp; Solicitudes</button>
     <a class="side-action" href="index.html">⌂ &nbsp; Ver página pública</a>
+    <a class="side-action" href="index.html?test=1">🧪 &nbsp; Nueva prueba de cliente</a>
     <div class="side-footer"><button type="button" class="outline" id="adminLogout">Cerrar sesión</button><small>Panel privado; Firestore y Supabase restringidos por UID y reglas de seguridad</small></div>
   </aside>
   <main class="workspace">
@@ -37,6 +38,9 @@
       </section>
     </div>
   </main>
+</div>
+<div id="gdiImageViewer" class="gdi-viewer" hidden role="dialog" aria-modal="true" aria-label="Visualización ampliada">
+ <div class="gdi-viewer-inner"><button id="gdiCloseViewer" type="button">✕ Cerrar imagen</button><img id="gdiViewerImage" alt="Imagen ampliada del documento privado"></div>
 </div>
 <script type="module" src="js/admin-bootstrap.js"></script>
 </body></html>

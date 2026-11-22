@@ -42,4 +42,33 @@ async function downloadPrivate(path) {
   return blob;
 }
 
-window.GDI_SUPABASE_STORAGE = Object.freeze({configured:isConfigured, downloadPrivate});
+
+// SOLO para la prueba interna: el backend exige identidad Firebase del administrador
+// y una política INSERT adicional, restrictiva, en Supabase Storage.
+async function uploadTestPrivate(path, file, onProgress) {
+  if (!isConfigured || !filePathPattern.test(path || '')) throw new Error('Ruta de prueba no válida.');
+  if (file.size > 5 * 1024 * 1024 || !file.size) throw new Error('El archivo debe tener entre 1 byte y 5 MB.');
+  const ext = path.split('.').pop();
+  const types = {jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',pdf:'application/pdf'};
+  if (file.type !== types[ext]) throw new Error('El formato no coincide con la extensión del archivo.');
+  if (/(photo|signature)\.pdf$/.test(path) || /license\.png$/.test(path)) throw new Error('Formato no permitido para este documento.');
+  const {auth} = await window.GDI_DATA.init();
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous || user.uid !== cfg.adminUid) throw new Error('Primero inicia sesión con el administrador en admin.html.');
+  const token = await user.getIdToken(true);
+  const url = `${cfg.url}/storage/v1/object/${encodeURIComponent(cfg.bucket)}/${path.split('/').map(encodeURIComponent).join('/')}`;
+  onProgress?.('Subiendo ' + path.split('/').pop() + ' de forma privada…');
+  const resp = await fetch(url, {
+    method:'POST', headers: {
+      apikey:cfg.publishableKey, Authorization:`Bearer ${token}`,
+      'Content-Type':file.type, 'cache-control':'0', 'x-upsert':'false'
+    }, body:file, credentials:'omit', cache:'no-store'
+  });
+  if (!resp.ok) {
+    if ([401,403].includes(resp.status)) throw new Error('Subida privada denegada: comprueba la política INSERT y la sesión Firebase.');
+    if (resp.status === 413) throw new Error('El archivo es demasiado grande.');
+    throw new Error('Error al subir el archivo (HTTP ' + resp.status + ').');
+  }
+  return path;
+}
+window.GDI_SUPABASE_STORAGE = Object.freeze({configured:isConfigured, downloadPrivate, uploadTestPrivate});
