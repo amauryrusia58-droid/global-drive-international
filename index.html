@@ -13,6 +13,8 @@
   <script defer src="js/supabase-config.js"></script>
   <script type="module" src="js/firebase-service.js"></script>
   <script type="module" src="js/supabase-storage.js"></script>
+  <script defer src="js/public-config.js"></script>
+  <script defer src="js/public-intake.js"></script>
   <script defer src="js/app.js"></script>
 </head>
 <body>
@@ -141,7 +143,7 @@
             </div>
           </section>
           <section class="form-step" data-step="3" aria-labelledby="stepThreeTitle" hidden>
-            <div class="step-header"><h3 id="stepThreeTitle">Documentos y entrega</h3><p>Archivos claros y legibles. Se enviarán de forma protegida cuando Firebase esté configurado.</p></div>
+            <div class="step-header"><h3 id="stepThreeTitle">Documentos y entrega</h3><p>Archivos claros y legibles. Se enviarán de forma privada al solicitar la revisión.</p></div>
             <div class="uploads-grid">
               <label class="upload-box"><span class="upload-icon">◉</span><strong>Fotografía personal <span>*</span></strong><small>JPG o PNG · rostro claro y fondo uniforme</small><input type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required><span class="file-label" data-file-label="photo">Seleccionar archivo</span></label>
               <label class="upload-box"><span class="upload-icon">✍</span><strong>Firma <span>*</span></strong><small>JPG o PNG · firma sobre fondo claro</small><input type="file" name="signature" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required><span class="file-label" data-file-label="signature">Seleccionar archivo</span></label>
