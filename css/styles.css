@@ -44,13 +44,13 @@ body.modal-open{overflow:hidden}
 .payment-method-option small{font-size:11px;color:#6e6d7d;margin-top:4px}
 .payment-selection-indicator{margin-left:auto;font-weight:900;color:#7430c3;font-size:16px}
 .payment-note{font-size:11px;line-height:1.6;color:#625c77}
-.bank-card-mockup{min-height:198px;border-radius:19px;background:linear-gradient(126deg,#183c4a,#165565 53%,#153d58);box-shadow:0 18px 31px #0f2e3a39;color:#fff;padding:22px 24px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.bank-card-mockup{min-height:198px;border-radius:19px;background:linear-gradient(126deg,#28b54a 0%,#21a038 54%,#117a32 100%);box-shadow:0 18px 31px #137e3440;color:#fff;padding:22px 24px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
 .bank-card-mockup:after{content:'';position:absolute;right:-60px;bottom:-145px;width:300px;height:260px;border:2px solid #ffffff1a;border-radius:50%;pointer-events:none}
 .bank-card-top{display:flex;justify-content:space-between;align-items:center;font-size:22px;font-weight:850;letter-spacing:-.6px}
-.bank-card-chip{font-size:28px;color:#d8e2c8}
+.bank-card-chip{font-size:28px;color:#edfff1}
 .bank-card-number{font-size:23px;letter-spacing:1px;overflow-wrap:anywhere;margin-top:12px}
 .bank-card-holder{font-size:12px;letter-spacing:1px;font-weight:750}
-.bank-card-disclaimer{font-size:10px;color:#dcf5ed;letter-spacing:.4px}
+.bank-card-disclaimer{font-size:10px;color:#edfff2;letter-spacing:.4px}
 .payment-copy-row{display:flex;gap:12px;align-items:center;justify-content:space-between;background:#fff;border:1px solid #ddd1ec;border-radius:12px;padding:13px;margin-top:12px}
 .payment-copy-row small{display:block;color:#82788f;font-size:10px;margin-bottom:5px}
 .payment-copy-row strong{overflow-wrap:anywhere;font-size:12px;color:#342b49}
@@ -70,3 +70,6 @@ body.modal-open{overflow:hidden}
 
 /* V9 · Aviso inconfundible de ensayo privado */
 .gdi-test-banner{background:#fff3ce;color:#613c00;border-bottom:3px solid #cb830d;padding:12px 18px;text-align:center;font-size:13px;line-height:1.5;position:relative;z-index:60}.gdi-test-banner strong{font-weight:900}
+
+/* V10 · Seguridad pública discreta en el último paso */
+.gdi-turnstile{display:flex;justify-content:center;margin:14px 0;min-height:0}
