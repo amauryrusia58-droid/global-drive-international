@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function admin() { return signed() && (request.auth.token.admin == true || request.auth.uid == "Tj2ACB3I9OWAa3uZS6uYGtAbxIR2"); }
+    function saneText(v, n) { return v is string && v.size() <= n; }
+    function expectedPrice(p, y) {
+      return p == 'standard' ? (y == 1 ? 8300 : y == 3 ? 8500 : y == 5 ? 8800 : y == 10 ? 9100 : y == 20 ? 9900 : -1) :
+             p == 'premium' ? (y == 1 ? 9900 : y == 3 ? 10300 : y == 5 ? 10700 : y == 10 ? 11100 : y == 20 ? 13600 : -1) : -1;
+    }
+    function validPersonal(p) {
+      return p is map && p.keys().hasOnly(['firstName','lastName','country','city','homeAddress','province','zip','birthDate','birthCountry','licenseNumber','licenseIssue','licenseExpiry','phone','email'])
+        && p.keys().hasAll(['firstName','lastName','country','city','homeAddress','province','zip','birthDate','birthCountry','licenseNumber','licenseIssue','licenseExpiry','phone','email'])
+        && saneText(p.firstName,100) && p.firstName.size() > 0
+        && saneText(p.lastName,100) && p.lastName.size() > 0
+        && saneText(p.country,100) && p.country.size() > 0
+        && saneText(p.city,100) && p.city.size() > 0
+        && saneText(p.homeAddress,250) && p.homeAddress.size() > 0
+        && saneText(p.province,100) && saneText(p.zip,25)
+        && saneText(p.birthDate,10) && saneText(p.birthCountry,100)
+        && saneText(p.licenseNumber,80) && saneText(p.licenseIssue,10) && saneText(p.licenseExpiry,10)
+        && saneText(p.phone,35) && saneText(p.email,160);
+    }
+    function validDelivery(d) {
+      return d is map && d.keys().hasOnly(['deliveryCountry','deliveryCity','deliveryAddress','deliveryZip','notes'])
+        && d.keys().hasAll(['deliveryCountry','deliveryCity','deliveryAddress','deliveryZip','notes'])
+        && saneText(d.deliveryCountry,100) && d.deliveryCountry.size() > 0
+        && saneText(d.deliveryCity,100) && d.deliveryCity.size() > 0
+        && saneText(d.deliveryAddress,250) && d.deliveryAddress.size() > 0
+        && saneText(d.deliveryZip,25) && saneText(d.notes,250);
+    }
+    function isValidCreate() {
+      let d = request.resource.data;
+      return signed() && d.keys().hasOnly(['ownerUid','status','paymentStatus','paymentDeclared','paymentMethod','packageCode','years','priceRUB','categories','personal','delivery','files','createdAt','updatedAt'])
+        && d.keys().hasAll(['ownerUid','status','paymentStatus','paymentDeclared','paymentMethod','packageCode','years','priceRUB','categories','personal','delivery','files','createdAt','updatedAt'])
+        && d.ownerUid == request.auth.uid && d.status == 'uploading'
+        && d.paymentStatus == 'unverified' && d.paymentDeclared is bool && d.paymentMethod == 'sberbank'
+        && d.years is int && d.priceRUB == expectedPrice(d.packageCode,d.years)
+        && d.categories is list && d.categories.size() > 0 && d.categories.size() <= 15
+        && d.files is map && d.files.keys().size() == 0
+        && validPersonal(d.personal) && validDelivery(d.delivery)
+        && d.createdAt == request.time && d.updatedAt == request.time;
+    }
+    function validCompletedFiles(d, id) {
+      return d.files is map
+        && d.files.keys().hasOnly(['photo','signature','license'])
+        && d.files.keys().hasAll(['photo','signature','license'])
+        && d.files.photo is string && d.files.signature is string && d.files.license is string
+        && d.files.photo.matches('submissions/' + d.ownerUid + '/' + id + '/photo\\.(jpg|jpeg|png)')
+        && d.files.signature.matches('submissions/' + d.ownerUid + '/' + id + '/signature\\.(jpg|jpeg|png)')
+        && d.files.license.matches('submissions/' + d.ownerUid + '/' + id + '/license\\.(jpg|jpeg|pdf)');
+    }
+    match /submissions/{submissionId} {
+      allow get: if admin() || (signed() && resource.data.ownerUid == request.auth.uid);
+      allow list: if admin();
+      allow create: if isValidCreate();
+      allow update: if (
+        signed() && resource.data.ownerUid == request.auth.uid
+        && resource.data.status == 'uploading'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','files','updatedAt'])
+        && request.resource.data.status == 'new'
+        && request.resource.data.updatedAt == request.time
+        && validCompletedFiles(request.resource.data, submissionId)
+        && request.time < resource.data.createdAt + duration.value(60,'m')
+      ) || (
+        admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','paymentStatus','adminNote','updatedAt'])
+        && request.resource.data.status in ['new','review','approved','rejected']
+        && request.resource.data.paymentStatus in ['unverified','verified']
+        && (!('adminNote' in request.resource.data) || saneText(request.resource.data.adminNote,500))
+        && request.resource.data.updatedAt == request.time
+      );
+      allow delete: if admin();
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

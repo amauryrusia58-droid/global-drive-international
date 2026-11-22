@@ -1,82 +1,35 @@
-/* Global Drive International · capa Firebase (Firebase JS SDK 13.4.0).
-   Las decisiones de acceso se hacen en Firestore/Storage Rules, NO en el JS. */
+/* Global Drive International · Firebase Authentication y Firestore.
+   Los documentos privados se descargan de Supabase usando el token Firebase.
+   Recepción pública desactivada hasta añadir un backend seguro de carga. */
 const config = window.GDI_FIREBASE_CONFIG || {};
-const readyToConfigure = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'appId']
+const readyToConfigure = ['apiKey', 'authDomain', 'projectId', 'appId']
   .every((k) => typeof config[k] === 'string' && config[k].trim().length > 0);
 let active = null;
 let pending = null;
-const prices = window.GDI_CONFIG?.pricesRUB;
-// La recepción debe permanecer inactiva hasta completar los datos del responsable de privacidad.
-const privacyApproved = config.privacyApproved === true;
 const sdk = 'https://www.gstatic.com/firebasejs/13.4.0/';
 
 const api = {
   configured: readyToConfigure,
-  receptionReady: readyToConfigure && privacyApproved,
+  receptionReady: false,
   async init() {
     if (!readyToConfigure) throw new Error('Firebase no está configurado. Completa js/firebase-config.js.');
     if (active) return active;
     if (pending) return pending;
     pending = (async () => {
-      const [app, authApi, fs, st] = await Promise.all([
+      const [app, authApi, fs] = await Promise.all([
         import(`${sdk}firebase-app.js`), import(`${sdk}firebase-auth.js`),
-        import(`${sdk}firebase-firestore.js`), import(`${sdk}firebase-storage.js`)
+        import(`${sdk}firebase-firestore.js`)
       ]);
       const instance = app.initializeApp(config);
       const auth = authApi.getAuth(instance);
       const db = fs.getFirestore(instance);
-      const storage = st.getStorage(instance);
-      if (config.appCheckSiteKey) {
-        const ac = await import(`${sdk}firebase-app-check.js`);
-        ac.initializeAppCheck(instance, {
-          provider: new ac.ReCaptchaV3Provider(config.appCheckSiteKey),
-          isTokenAutoRefreshEnabled: true
-        });
-      }
-      active = {auth,db,storage,authApi,fs,st};
+      active = {auth,db,authApi,fs};
       return active;
     })();
     try { return await pending; } finally { pending = null; }
   },
-  async submit(form, pkg, year, categoryValues, paymentDeclared, progress) {
-    if (!privacyApproved) throw new Error('La recepción permanece cerrada hasta configurar Storage, privacidad y reglas seguras.');
-    const {auth,db,storage,authApi,fs,st} = await this.init();
-    if (!auth.currentUser) await authApi.signInAnonymously(auth);
-    const uid = auth.currentUser.uid;
-    const price = prices?.[pkg]?.[year];
-    if (!price) throw new Error('Paquete o período inválido.');
-    const v = (field) => String(form.elements.namedItem(field)?.value || '').trim();
-    const personal = {};
-    for (const key of ['firstName','lastName','country','city','homeAddress','province','zip','birthDate','birthCountry','licenseNumber','licenseIssue','licenseExpiry','phone','email']) personal[key] = v(key);
-    const delivery = {};
-    for (const key of ['deliveryCountry','deliveryCity','deliveryAddress','deliveryZip','notes']) delivery[key] = v(key);
-    const reference = fs.doc(fs.collection(db, 'submissions'));
-    const docData = {
-      ownerUid: uid, status: 'uploading', paymentStatus: 'unverified', paymentDeclared: Boolean(paymentDeclared),
-      paymentMethod: 'sberbank', packageCode: pkg, years: Number(year), priceRUB: Number(price),
-      categories: categoryValues, personal, delivery, files: {},
-      createdAt: fs.serverTimestamp(), updatedAt: fs.serverTimestamp()
-    };
-    progress?.('Registrando solicitud de forma protegida…');
-    await fs.setDoc(reference, docData);
-    const files = {};
-    for (const [name, field] of [['photo','photo'], ['signature','signature'], ['license','licenseOriginal']]) {
-      const file = form.elements.namedItem(field)?.files?.[0];
-      if (!file) throw new Error(`Falta adjuntar: ${name}.`);
-      const ext = file.name.split('.').pop().toLowerCase();
-      const allowed = name === 'license' ? ['jpg','jpeg','pdf'] : ['jpg','jpeg','png'];
-      const mimeAllowed = name === 'license' ? ['image/jpeg','application/pdf'] : ['image/jpeg','image/png'];
-      if (!allowed.includes(ext) || !mimeAllowed.includes(file.type) || file.size > 10 * 1024 * 1024 || !file.size) {
-        throw new Error(`Archivo ${name} inválido: revisa formato y tamaño (máximo 10 MB).`);
-      }
-      const path = `submissions/${uid}/${reference.id}/${name}.${ext}`;
-      progress?.(`Subiendo ${name === 'photo' ? 'fotografía' : name === 'signature' ? 'firma' : 'licencia original'}…`);
-      await st.uploadBytes(st.ref(storage, path), file, {contentType: file.type});
-      files[name] = path;
-    }
-    progress?.('Confirmando recepción de documentos…');
-    await fs.updateDoc(reference, {files, status:'new', updatedAt: fs.serverTimestamp()});
-    return {reference: reference.id, paymentVerified: false};
+  async submit() {
+    throw new Error('La recepción de solicitudes está desactivada: falta un servicio seguro de subida y validación. No se han enviado archivos ni datos.');
   },
   async signInAdmin(email, password) {
     const {auth,authApi} = await this.init();
@@ -84,7 +37,8 @@ const api = {
       throw new Error('Introduce correo electrónico y contraseña.');
     }
     // La contraseña se envía directamente a Firebase Auth, sin guardarla en JS/Firestore.
-    return authApi.signInWithEmailAndPassword(auth, email.trim(), password);
+    const cred = await authApi.signInWithEmailAndPassword(auth, email.trim(), password);
+    return cred;
   },
   async signOutAdmin() {
     const {auth,authApi} = await this.init();
@@ -115,8 +69,9 @@ const api = {
   },
   async loadPrivateFile(path) {
     if (!/^submissions\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/(photo|signature|license)\.(jpg|jpeg|png|pdf)$/.test(path || '')) throw new Error('Ruta de archivo no válida.');
-    const {storage,st} = await this.init();
-    return st.getBlob(st.ref(storage,path), 10 * 1024 * 1024 + 1);
+    const gateway = window.GDI_SUPABASE_STORAGE;
+    if (!gateway?.configured) throw new Error('Supabase no está configurado.');
+    return gateway.downloadPrivate(path);
   }
 };
 window.GDI_DATA = api;

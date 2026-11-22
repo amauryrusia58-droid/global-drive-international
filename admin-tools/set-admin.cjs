@@ -10,6 +10,6 @@ admin.initializeApp({credential: admin.credential.applicationDefault()});
 (async()=>{
   const user = await admin.auth().getUser(uid);
   const current = user.customClaims || {};
-  await admin.auth().setCustomUserClaims(uid, {...current, admin:true});
-  console.log(`Rol admin aplicado al UID: ${uid}. Cierra sesión y vuelve a entrar para renovar el token.`);
+  await admin.auth().setCustomUserClaims(uid, {...current, admin:true, role:'authenticated'});
+  console.log(`Claims admin:true y role:authenticated aplicadas al UID: ${uid}. Cierra sesión y vuelve a entrar para renovar el token.`);
 })().catch((e) => { console.error(e.message); process.exit(1); });

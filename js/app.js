@@ -263,7 +263,7 @@
     if (!window.GDI_DATA?.receptionReady) {
       const status = $('#submissionStatus');
       status.hidden = false;
-      status.textContent = 'Recepción aún no habilitada: Firebase está identificado, pero falta activar Storage, verificar las reglas y completar la privacidad. Puedes descargar el resumen; no se guardarán documentos.';
+      status.textContent = 'Recepción aún no habilitada: Firebase y Supabase están configurados, pero falta un servicio seguro para recibir archivos y la política de privacidad completa. Puedes descargar el resumen; no se guardarán documentos.';
       $('#downloadSummary').hidden = false;
     } else {
       $('#submissionStatus').hidden = true;
@@ -303,7 +303,7 @@
     status.hidden = false;
     const gateway = window.GDI_DATA;
     if (!gateway?.receptionReady) {
-      status.textContent = 'Solicitud NO enviada: faltan configurar el almacenamiento seguro, las reglas y la política de privacidad. El número Sberbank mostrado no habilita pagos.';
+      status.textContent = 'Solicitud NO enviada: aún falta programar el servicio de recepción segura de archivos y completar la privacidad. La tarjeta Sberbank es solo una referencia, no un pago habilitado.';
       $('#downloadSummary').hidden = false;
       status.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -420,7 +420,7 @@
       display.textContent = input.files[0].name;
       if (!allowedFile(input, input.files[0]) || input.files[0].size > settings.maxFileBytes) {
         display.textContent = 'Archivo no válido: revisa formato o tamaño';
-        error(input, 'Selecciona un archivo JPG, PNG o PDF permitido, de máximo 10 MB.');
+        error(input, 'Selecciona un archivo JPG, PNG o PDF permitido, de máximo 5 MB.');
       }
     } else display.textContent = 'Seleccionar archivo';
   }));

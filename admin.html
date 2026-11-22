@@ -4,8 +4,9 @@
 <title>Panel privado | Global Drive International</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/admin.css">
-<script defer src="js/config.js"></script><script defer src="js/firebase-config.js"></script>
+<script defer src="js/config.js"></script><script defer src="js/firebase-config.js"></script><script defer src="js/supabase-config.js"></script>
 <script type="module" src="js/firebase-service.js"></script>
+<script type="module" src="js/supabase-storage.js"></script>
 <script defer src="js/admin.js"></script>
 </head><body>
 <header class="admin-header"><a class="brand" href="index.html"><span class="globe">◎</span><span>GLOBAL DRIVE<small>INTERNATIONAL</small></span></a><h1>Panel de administración <small>Gestión de solicitudes, pagos y clientes</small></h1><div class="identity" id="adminIdentity">Acceso privado</div></header>
@@ -14,7 +15,7 @@
   <aside class="sidebar"><div class="side-heading">GLOBAL DRIVE · GESTIÓN</div>
     <button class="side-action active" type="button" id="navSubmissions">▤ &nbsp; Solicitudes</button>
     <a class="side-action" href="index.html">⌂ &nbsp; Ver página pública</a>
-    <div class="side-footer"><button type="button" class="outline" id="adminLogout">Cerrar sesión</button><small>Panel privado; acceso protegido con Firebase Authentication y reglas de seguridad</small></div>
+    <div class="side-footer"><button type="button" class="outline" id="adminLogout">Cerrar sesión</button><small>Panel privado; Firestore y Supabase restringidos por UID y reglas de seguridad</small></div>
   </aside>
   <main class="workspace">
     <div class="metrics"><article><span class="metric-symbol">▤</span><div><small>Solicitudes recibidas</small><strong id="countTotal">0</strong></div></article><article><span class="metric-symbol">◷</span><div><small>Pagos por comprobar</small><strong id="countPending">0</strong></div></article><article><span class="metric-symbol green">✓</span><div><small>Aprobadas</small><strong id="countApproved">0</strong></div></article><article><span class="metric-symbol">◴</span><div><small>En revisión</small><strong id="countReview">0</strong></div></article></div>
