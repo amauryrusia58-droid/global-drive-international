@@ -193,7 +193,33 @@ const grid=$('#documentGrid');grid.replaceChildren();
       else await window.GDI_DATA.updateAdmin(id,fields);
       const current=all.find(x=>x.id===id);
       if(current){current.data={...current.data,...fields};lastDetailFingerprint='';refresh();}
-      if(fields.status==='approved'&&row.data.isTest)
+      // Correo transaccional: solo después de guardar una aprobación real en Supabase.
+      // Nunca contiene la clave de Brevo en el navegador.
+      if(fields.status==='approved' && row.source==='supabase' && !row.data.isTest){
+        notice('Solicitud aprobada. Comprobando envío del correo…');
+        try {
+          const {auth}=await window.GDI_DATA.init();
+          if(!auth.currentUser)throw new Error('Debes iniciar sesión de administrador.');
+          const token=await auth.currentUser.getIdToken();
+          const cfg=window.GDI_SUPABASE_CONFIG;
+          if(!cfg?.url||!cfg?.publishableKey)throw new Error('Falta la configuración pública de Supabase.');
+          const response=await fetch(cfg.url+'/functions/v1/gdi-approval-email',{
+            method:'POST',mode:'cors',credentials:'omit',cache:'no-store',
+            headers:{'Content-Type':'application/json',apikey:cfg.publishableKey,Authorization:'Bearer '+token},
+            body:JSON.stringify({requestId:id})
+          });
+          let result={};try{result=await response.json();}catch{}
+          if(!response.ok)throw new Error(result.error||'Error HTTP '+response.status);
+          notice(result.status==='already_sent'
+            ? 'Solicitud aprobada. El aviso ya había sido enviado a este cliente.'
+            : result.status==='sent'
+            ? 'Solicitud aprobada y aviso enviado por correo al cliente.'
+            : 'Solicitud aprobada. El aviso de correo está pendiente de confirmación.');
+        }catch(emailError){
+          console.error('No se pudo confirmar el correo de aprobación:',emailError);
+          notice('SOLICITUD APROBADA, pero correo NO confirmado: '+(emailError.message||'error de red')+'. Revisa la función gdi-approval-email en Supabase.');
+        }
+      }else if(fields.status==='approved'&&row.data.isTest)
         notice('Prueba aprobada en Firebase. No hay pagos reales ni verificación bancaria.');
       else notice('Cambio de estado guardado correctamente.');
     } catch(e){
