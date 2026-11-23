@@ -294,6 +294,22 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  let submittedReference = null;
+  $('#proceedPayment').addEventListener('click', () => {
+    $('#paymentConfirmation').hidden = false;
+    $('#paymentNotificationMessage').textContent = 'Comprueba los datos del destinatario en tu banco antes de transferir. El pago se verificará manualmente.';
+  });
+  $('#notifyPayment').addEventListener('click', async () => {
+    if (!submittedReference || internalTest) return;
+    const btn=$('#notifyPayment'), msg=$('#paymentNotificationMessage');
+    btn.disabled=true;msg.textContent='Registrando aviso de pago…';
+    try {
+      await window.GDI_PUBLIC_INTAKE.notifyPayment(submittedReference);
+      btn.hidden=true;
+      msg.textContent='Pago notificado — Pendiente de verificación. Nuestro equipo revisará el pago y, una vez confirmado, procederá a confeccionar el documento y gestionar su envío.';
+    } catch(error) {btn.disabled=false;msg.textContent='No se pudo registrar el aviso: '+error.message;}
+  });
+
   async function submitRealRequest(event) {
     event.preventDefault();
     if (state.step !== 5) {
@@ -323,6 +339,8 @@
       const reply = await gateway.submit(form, state.package, state.year, categories(), Boolean($('#paymentDeclared').checked), (message)=>{status.textContent=message;});
       if (!reply?.reference) throw new Error('No se pudo confirmar la referencia de la solicitud.');
       status.textContent = internalTest ? `PRUEBA REGISTRADA correctamente. Referencia: ${reply.reference}. Abre admin.html para comprobar los datos y las tres imágenes. Ningún pago fue realizado.` : `Solicitud recibida para revisión. Referencia: ${reply.reference}. Conserva este número. No se ha cobrado ni verificado ningún pago.`;
+      submittedReference = reply.reference;
+      if (!internalTest) $('#afterSubmission').hidden = false;
       $('#submitRequest').hidden = true;
       $('#downloadSummary').hidden = false;
     } catch (err) {

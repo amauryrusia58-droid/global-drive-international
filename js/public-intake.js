@@ -47,7 +47,14 @@
     if(!/^[a-f0-9]{32}$/.test(body.reference||''))throw new Error('No se pudo confirmar la referencia; contacta con soporte antes de repetir.');
     return {reference:body.reference};
   }
+  async function notifyPayment(reference) {
+    if(!configured || !/^[a-f0-9]{32}$/.test(reference))throw new Error('Referencia inválida.');
+    const response=await fetch(cfg.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'declare_payment',requestId:reference}),cache:'no-store'});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(body.error||'No se pudo registrar el aviso.');
+    return body;
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installHoneypot);
   else installHoneypot();
-  window.GDI_PUBLIC_INTAKE=Object.freeze({configured,submit});
+  window.GDI_PUBLIC_INTAKE=Object.freeze({configured,submit,notifyPayment});
 })();

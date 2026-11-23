@@ -185,6 +185,12 @@
             <div class="payment-test-notice" id="paymentTestNotice">La tarjeta se muestra como referencia visual. <strong>Los pagos aún no están habilitados</strong> hasta que se verifique el titular. Puedes enviar la solicitud para revisión sin declarar un pago; no transfieras dinero hasta que se confirme su activación.</div>
             <label class="checkbox-line payment-declaration"><input type="checkbox" name="paymentDeclared" id="paymentDeclared"> Declaro que he enviado el importe indicado al método de pago configurado y solicito que revisen mi pago. Entiendo que marcar esta casilla no confirma la transferencia.</label>
             <div class="submission-status" id="paymentSubmissionStatus" role="status" aria-live="polite" hidden></div>
+            <div id="afterSubmission" hidden class="payment-test-notice" style="margin-top:14px">
+              <h4>Solicitud recibida</h4><p>Para continuar, realice el pago correspondiente.</p>
+              <button type="button" class="btn btn-primary" id="proceedPayment">Proceder al pago</button>
+              <div id="paymentConfirmation" hidden style="margin-top:12px"><p>Después de realizar el pago, presione el botón.</p><button type="button" class="btn btn-primary" id="notifyPayment">He realizado el pago</button></div>
+              <p id="paymentNotificationMessage" role="status" aria-live="polite"></p>
+            </div>
           </section>
           <div class="form-footer"><button type="button" class="btn btn-quiet" id="prevStep" hidden>← Anterior</button><div class="footer-spacer"></div><button type="button" class="btn btn-primary" id="nextStep">Continuar →</button><button type="submit" class="btn btn-primary" id="submitRequest" hidden>Enviar solicitud para revisión →</button></div>
         </form>
